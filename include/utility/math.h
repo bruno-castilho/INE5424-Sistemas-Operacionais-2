@@ -266,6 +266,12 @@ inline T1 lcm(T1 a, T2 b)
     return temp ? a * (b / temp) : 0;
 }
 
+template<typename T1>
+inline int floor(T1 x)
+{
+    return static_cast<T1>(static_cast<int>(x));
+}
+
 }
 
 __END_UTIL

@@ -186,6 +186,15 @@ namespace EPOS {
 #define __SPI_H                 __HEADER_MACH(spi)
 #endif
 
+#ifdef __visionfive2__
+#define __riscv__
+#define __TSC_H                 __HEADER_ARCH(tsc)
+#define __PMU_H                 __HEADER_ARCH(pmu)
+
+#define __UART_H                __HEADER_MACH(uart)
+#define __SPI_H                 __HEADER_MACH(spi)
+#endif
+
 #include <system/meta.h>
 #include <system/traits.h>
 #include __APPLICATION_TRAITS_H

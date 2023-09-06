@@ -182,7 +182,7 @@ struct Traits_Tokens
     enum {eMote1, eMote2, STK500, RCX, Cortex, PC, Leon, Virtex, RISCV};
 
     // Machine models
-    enum {Unique, Legacy_PC, eMote3, LM3S811, Zynq, Realview_PBX, Raspberry_Pi3, SiFive_E, SiFive_U};
+    enum {Unique, Virt, Legacy_PC, eMote3, LM3S811, Zynq, Realview_PBX, Raspberry_Pi3, SiFive_E, SiFive_U, VisionFive2};
 
     // Architecture endianness
     enum {LITTLE, BIG};
