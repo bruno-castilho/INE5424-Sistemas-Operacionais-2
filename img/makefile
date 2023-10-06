@@ -43,6 +43,12 @@ NETWORK	        := -netdev socket,id=vlan0,mcast=230.0.0.1:1234 -object filter-d
 # add the rest of the line to enable a dhcp server -netdev user,id=1,ipv6=off,restrict=on,net=10.0.1.0/24,host=10.0.1.1,dhcpstart=10.0.1.8
 PEER_NETWORK	:= -netdev socket,id=vlan0,mcast=230.0.0.1:1234 -object filter-dump,id=dump0,netdev=vlan0,file=$(PEER).pcap -device pcnet,id=eth0,netdev=vlan0,mac=56:34:12:00:54:09 -device pcnet,id=eth1,mac=00:00:00:00:00:02
 
+ifeq ($(MMOD),sifive_u)
+NETWORK	        := -D $(addsuffix 1.log,$(APPLICATION)) -netdev socket,id=vlan0,mcast=230.0.0.1:1234 -object filter-dump,id=dump0,netdev=vlan0,file=$(APPLICATION).pcap -net nic,model=cadence_gem,id=eth0,netdev=vlan0,macaddr=56:34:12:00:54:08 #-net nic,model=cadence_gem,id=eth1,macaddr=00:00:00:00:00:01
+# add the rest of the line to enable a dhcp server -netdev user,id=1,ipv6=off,restrict=on,net=10.0.1.0/24,host=10.0.1.1,dhcpstart=10.0.1.8
+PEER_NETWORK	:= -D $(addsuffix 2.log,$(APPLICATION)) -netdev socket,id=vlan0,mcast=230.0.0.1:1234 -object filter-dump,id=dump0,netdev=vlan0,file=$(PEER).pcap -net nic,model=cadence_gem,id=eth0,netdev=vlan0,macaddr=56:34:12:00:54:09 #-net nic,model=cadence_gem,id=eth1,macaddr=00:00:00:00:00:02
+endif
+
 ifeq ($(NODES),1)
 
 all:		strip $(IMAGE)

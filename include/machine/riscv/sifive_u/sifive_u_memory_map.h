@@ -29,7 +29,7 @@ public:
         UART0_BASE      = 0x10010000,   // SiFive UART
         CLINT_BASE      = 0x02000000,   // SiFive CLINT
         TIMER_BASE      = 0x02004000,   // CLINT Timer
-        PLIIC_CPU_BASE  = 0x0c000000,   // SiFive PLIC
+        PLIC_CPU_BASE   = 0x0c000000,   // SiFive PLIC
         PRCI_BASE       = 0x10000000,   // SiFive-U Power, Reset, Clock, Interrupt
         GPIO_BASE       = 0x10060000,   // SiFive-U GPIO
         OTP_BASE        = 0x10070000,   // SiFive-U OTP

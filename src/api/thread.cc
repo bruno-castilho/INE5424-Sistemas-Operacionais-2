@@ -286,6 +286,7 @@ void Thread::wakeup_all(Queue * q)
 
     assert(locked()); // locking handled by caller
 
+
     if(!q->empty()) {
         while(!q->empty()) {
             Thread * t = q->remove()->object();
@@ -294,8 +295,9 @@ void Thread::wakeup_all(Queue * q)
             _scheduler.resume(t);
         }
 
-        if(preemptive)
+        if(preemptive){
             reschedule();
+        }
     }
 }
 

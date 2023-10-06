@@ -43,5 +43,9 @@
 #ifdef __KEYBOARD_H
 #include <machine/keyboard.h>
 #endif
+#ifdef __NIC_H
+#include <machine/nic.h>
+#include __NIC_H
+#endif
 
 #endif

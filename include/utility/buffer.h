@@ -60,7 +60,7 @@ public:
     }
 
 private:
-    volatile bool _lock;
+    volatile long _lock;
     Owner * _owner;
     Shadow * _shadow;
     unsigned int _size;

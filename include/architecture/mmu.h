@@ -76,14 +76,14 @@ public:
     public:
         Flags() {}
         Flags(const Flags & f) : _flags(f._flags) {}
-        Flags(unsigned int f) : _flags(f) {}
+        Flags(unsigned long f) : _flags(f) {}
 
-        operator unsigned int() const { return _flags; }
+        operator unsigned long() const { return _flags; }
 
-        friend OStream & operator<<(OStream & os, Flags f) { os << hex << f._flags << dec; return os; }
+        friend OStream & operator<<(OStream & os, const Flags & f) { os << hex << f._flags; return os; }
 
     private:
-        unsigned int _flags;
+        unsigned long _flags;
     };
 
     // Page types
@@ -138,23 +138,24 @@ public:
     {
     public:
         Chunk() {}
-        Chunk(unsigned int bytes, Flags flags, Color color = WHITE): _phy_addr(alloc(bytes)), _bytes(bytes), _flags(flags) {}
-        Chunk(Phy_Addr phy_addr, unsigned int bytes, Flags flags): _phy_addr(phy_addr), _bytes(bytes), _flags(flags) {}
-        Chunk(Phy_Addr pt, unsigned int from, unsigned int to, Flags flags): _phy_addr(0), _bytes(0), _flags(flags) {}
+        Chunk(const Chunk & c): _free(false), _phy_addr(c._phy_addr), _bytes(c._bytes), _flags(c._flags) {} // avoid freeing memory when temporaries are created
+        Chunk(unsigned long bytes, Flags flags, Color color = WHITE): _free(true), _phy_addr(alloc(bytes)), _bytes(bytes), _flags(flags) {}
+        Chunk(Phy_Addr phy_addr, unsigned long bytes, Flags flags):  _free(false), _phy_addr(phy_addr), _bytes(bytes), _flags(flags) {}
 
-        ~Chunk() { free(_phy_addr, _bytes); }
+        ~Chunk() { if(_free) free(_phy_addr, _bytes); }
 
         unsigned int pts() const { return 0; }
         Flags flags() const { return _flags; }
         Page_Table * pt() const { return 0; }
-        unsigned int size() const { return _bytes; }
-        Phy_Addr phy_address() const { return _phy_addr; } // always CT
-        int resize(unsigned int amount) { return 0; } // no resize in CT
+        unsigned long size() const { return _bytes; }
         void reflag(Flags flags) { _flags = flags; }
+        Phy_Addr phy_address() const { return _phy_addr; } // always CT
+        long resize(unsigned long amount) { return 0; } // no resize in CT
 
     private:
+        bool _free;
         Phy_Addr _phy_addr;
-        unsigned int _bytes;
+        unsigned long _bytes;
         Flags _flags;
     };
 
@@ -184,13 +185,13 @@ public:
     class DMA_Buffer: public Chunk
     {
     public:
-        DMA_Buffer(unsigned int s): Chunk(s, Flags::CT) {}
+        DMA_Buffer(unsigned long s): Chunk(s, Flags::DMA) {}
 
         Log_Addr log_address() const { return phy_address(); }
 
-        friend Debug & operator<<(Debug & db, const DMA_Buffer & b) {
-            db << "{phy=" << b.phy_address() << ",log=" << b.log_address() << ",size=" << b.size() << ",flags=" << b.flags() << "}";
-            return db;
+        friend OStream & operator<<(OStream & os, const DMA_Buffer & b) {
+            os << "{phy=" << b.phy_address() << ",log=" << b.log_address() << ",size=" << b.size() << ",flags=" << b.flags() << "}";
+            return os;
         }
     };
 
@@ -212,7 +213,7 @@ public:
 public:
     No_MMU() {}
 
-    static Phy_Addr alloc(unsigned int bytes = 1, Color color = WHITE) {
+    static Phy_Addr alloc(unsigned long bytes = 1, Color color = WHITE) {
         Phy_Addr phy(false);
         if(bytes) {
             List::Element * e = _free.search_decrementing(bytes);
@@ -226,13 +227,13 @@ public:
         return phy;
     };
 
-    static Phy_Addr calloc(unsigned int bytes = 1, Color color = WHITE) {
+    static Phy_Addr calloc(unsigned long bytes = 1, Color color = WHITE) {
         Phy_Addr phy = alloc(bytes);
         memset(phy, 0, bytes);
         return phy;
     }
 
-    static void free(Phy_Addr addr, unsigned int n = 1) {
+    static void free(Phy_Addr addr, unsigned long n = 1) {
         db<MMU>(TRC) << "MMU::free(addr=" << addr << ",n=" << n << ")" << endl;
 
         // No unaligned addresses if the CPU doesn't support it
@@ -248,7 +249,7 @@ public:
         }
     }
 
-    static unsigned int allocable(Color color = WHITE) { return _free.head() ? _free.head()->size() : 0; }
+    static unsigned long allocable(Color color = WHITE) { return _free.head() ? _free.head()->size() : 0; }
 
     static Page_Directory * volatile current() { return 0; }
 
