@@ -15,7 +15,7 @@ boot_legacy_pc.o: boot_legacy_pc.s
 		as86 -0 -o $@ $<
 
 install_legacy_pc: boot_legacy_pc
-		$(DD) if=$< of=$<.tmp ibs=32 skip=1 obs=512 >& /dev/null
+		$(DD) if=$< of=$<.tmp ibs=32 skip=1 obs=512 > /dev/null 2>&1
 		$(INSTALL) boot_$(MMOD).tmp $(IMG)/boot_$(MMOD)
 		$(CLEAN) boot_$(MMOD).tmp
 
