@@ -1,0 +1,12 @@
+{
+	"name": "INE5424-Sistemas-Operacionais-2",
+	"context": "..",
+	"dockerFile": "Dockerfile",
+	"extensions": [
+        "ms-vscode.cpptools",  
+		"ms-vscode.cpptools-extension-pack",
+        "gitpod.git",           
+   
+    ]
+}
+  
