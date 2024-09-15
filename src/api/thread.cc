@@ -9,15 +9,56 @@ __BEGIN_SYS
 extern OStream kout;
 
 volatile unsigned int Thread::_thread_count;
+volatile unsigned int Thread::_high_thread_count;
+volatile unsigned int Thread::_normal_threads;
+volatile unsigned int Thread::_low_threads;
 Scheduler_Timer * Thread::_timer;
 Scheduler<Thread> Thread::_scheduler;
 
+void Thread::increment_thread__count(){
+    _thread_count++;
+    switch(_criterion) {
+    case HIGH:
+        _high_thread_count++;
+        break;
+    case NORMAL:
+        _normal_threads++;
+        break;
+    case LOW:
+        _low_threads++;
+        break;
+    case MAIN:
+        break;
+    case IDLE:
+        break;
+    }
+
+}
+
+void Thread::decrement_thread__count(){
+    _thread_count--;
+    switch(_criterion) {
+    case HIGH:
+        _high_thread_count--;
+        break;
+    case NORMAL:
+        _normal_threads--;
+        break;
+    case LOW:
+        _low_threads--;
+        break;
+    case MAIN:
+        break;
+    case IDLE:
+        break;
+    }
+
+}
 
 void Thread::constructor_prologue(unsigned int stack_size)
 {
     lock();
-
-    _thread_count++;
+    increment_thread__count();
     _scheduler.insert(this);
 
     _stack = new (SYSTEM) char[stack_size];
@@ -66,18 +107,18 @@ Thread::~Thread()
         break;
     case READY:
         _scheduler.remove(this);
-        _thread_count--;
+        decrement_thread__count();
         break;
     case SUSPENDED:
         _scheduler.resume(this);
         _scheduler.remove(this);
-        _thread_count--;
+        decrement_thread__count();
         break;
     case WAITING:
         _waiting->remove(this);
         _scheduler.resume(this);
         _scheduler.remove(this);
-        _thread_count--;
+        decrement_thread__count();
         break;
     case FINISHING: // Already called exit()
         break;
@@ -224,7 +265,7 @@ void Thread::exit(int status)
     prev->_state = FINISHING;
     *reinterpret_cast<int *>(prev->_stack) = status;
 
-    _thread_count--;
+    prev->decrement_thread__count();
 
     if(prev->_joining) {
         prev->_joining->_state = READY;

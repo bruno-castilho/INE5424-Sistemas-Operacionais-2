@@ -63,6 +63,11 @@ public:
         unsigned int stack_size;
     };
 
+    static volatile unsigned int _thread_count;
+    static volatile unsigned int _high_thread_count;
+    static volatile unsigned int _normal_threads;
+    static volatile unsigned int _low_threads;
+
 
 public:
     template<typename ... Tn>
@@ -89,6 +94,8 @@ public:
 protected:
     void constructor_prologue(unsigned int stack_size);
     void constructor_epilogue(Log_Addr entry, unsigned int stack_size);
+    void increment_thread__count();
+    void decrement_thread__count();
 
     Queue::Element * link() { return &_link; }
 
@@ -119,8 +126,10 @@ protected:
     Queue * _waiting;
     Thread * volatile _joining;
     Queue::Element _link;
+    Criterion _criterion;
 
-    static volatile unsigned int _thread_count;
+
+
     static Scheduler_Timer * _timer;
     static Scheduler<Thread> _scheduler;
 };
@@ -130,7 +139,9 @@ template<typename ... Tn>
 inline Thread::Thread(int (* entry)(Tn ...), Tn ... an)
 : _state(READY), _waiting(0), _joining(0), _link(this, NORMAL)
 {
+    _criterion = NORMAL;
     constructor_prologue(STACK_SIZE);
+
     _context = CPU::init_stack(0, _stack + STACK_SIZE, &__exit, entry, an ...);
     constructor_epilogue(entry, STACK_SIZE);
 }
@@ -139,6 +150,7 @@ template<typename ... Tn>
 inline Thread::Thread(Configuration conf, int (* entry)(Tn ...), Tn ... an)
 : _state(conf.state), _waiting(0), _joining(0), _link(this, conf.criterion)
 {
+    _criterion = conf.criterion;
     constructor_prologue(conf.stack_size);
     _context = CPU::init_stack(0, _stack + conf.stack_size, &__exit, entry, an ...);
     constructor_epilogue(entry, conf.stack_size);
