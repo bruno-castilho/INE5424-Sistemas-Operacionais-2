@@ -55,6 +55,10 @@ void Thread::decrement_thread__count(){
 
 }
 
+int Thread::calculate_cpu_frequency(){
+    return (_thread_count + _high_thread_count + _normal_threads + _low_threads)/4;
+}
+
 void Thread::constructor_prologue(unsigned int stack_size)
 {
     lock();
@@ -371,6 +375,8 @@ void Thread::dispatch(Thread * prev, Thread * next, bool charge)
             prev->_state = READY;
         next->_state = RUNNING;
 
+        int perc = calculate_cpu_frequency();
+        db<Thread>(TRC) << "Thread::dispatch(perc=" << perc << ",freq=" << perc << ")" << endl;
         db<Thread>(TRC) << "Thread::dispatch(prev=" << prev << ",next=" << next << ")" << endl;
         if(Traits<Thread>::debugged && Traits<Debug>::info) {
             CPU::Context tmp;

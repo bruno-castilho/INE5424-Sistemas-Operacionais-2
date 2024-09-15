@@ -96,6 +96,7 @@ protected:
     void constructor_epilogue(Log_Addr entry, unsigned int stack_size);
     void increment_thread__count();
     void decrement_thread__count();
+    
 
     Queue::Element * link() { return &_link; }
 
@@ -112,6 +113,7 @@ protected:
     static void reschedule();
     static void time_slicer(IC::Interrupt_Id interrupt);
 
+    static int calculate_cpu_frequency();
     static void dispatch(Thread * prev, Thread * next, bool charge = true);
 
     static int idle();
