@@ -2,72 +2,56 @@
 
 #include <machine.h>
 #include <system.h>
+#include <time.h>
 #include <process.h>
+
 
 __BEGIN_SYS
 
+
 extern OStream kout;
+extern Clock clock;
 
 volatile unsigned int Thread::_thread_count;
-volatile unsigned int Thread::_high_thread_count;
-volatile unsigned int Thread::_normal_threads;
-volatile unsigned int Thread::_low_threads;
+volatile unsigned int Thread::_total_instructions;
+Second Thread::_longer_expiration_time;
+
 Scheduler_Timer * Thread::_timer;
 Scheduler<Thread> Thread::_scheduler;
 
-void Thread::increment_thread__count(){
-    _thread_count++;
-    switch(_criterion) {
-    case HIGH:
-        _high_thread_count++;
-        break;
-    case NORMAL:
-        _normal_threads++;
-        break;
-    case LOW:
-        _low_threads++;
-        break;
-    case MAIN:
-        break;
-    case IDLE:
-        break;
-    }
+float Thread::calculate_cpu_frequency(){
+    float max_frequency = 3.2;
+    float max_instructions_per_second = 70;
 
+    Second current_time = clock.now();
+    Second available_time = _longer_expiration_time - current_time;
+    float instructions_per_second = _total_instructions / available_time;
+    float frequency = max_frequency * instructions_per_second / max_instructions_per_second;
+
+
+
+    db<Thread>(TRC) << "Thread::calculate_cpu_frequency("
+                << "mfre=" << max_frequency
+                << ",mipm=" << max_instructions_per_second
+                << ",cur=" << current_time
+                << ",ava=" << available_time
+                << ",ipm=" << instructions_per_second
+                << ",fre=" << frequency  << ")" << endl;
+    return  frequency;
 }
 
-void Thread::decrement_thread__count(){
-    _thread_count--;
-    switch(_criterion) {
-    case HIGH:
-        _high_thread_count--;
-        break;
-    case NORMAL:
-        _normal_threads--;
-        break;
-    case LOW:
-        _low_threads--;
-        break;
-    case MAIN:
-        break;
-    case IDLE:
-        break;
-    }
-
-}
-
-int Thread::calculate_cpu_frequency(){
-    return (_thread_count + _high_thread_count + _normal_threads + _low_threads)/4;
-}
-
-void Thread::constructor_prologue(unsigned int stack_size)
+void Thread::constructor_prologue(unsigned int stack_size, unsigned int instructions, Second deadline)
 {
     lock();
-    increment_thread__count();
+    _thread_count++;
+    _expiration_time = clock.now() + deadline;
+    _total_instructions += instructions;
+    _longer_expiration_time = (_longer_expiration_time >= _expiration_time ? _longer_expiration_time : _expiration_time); // Melhorar;
+
     _scheduler.insert(this);
 
     _stack = new (SYSTEM) char[stack_size];
 }
-
 
 void Thread::constructor_epilogue(Log_Addr entry, unsigned int stack_size)
 {
@@ -111,18 +95,18 @@ Thread::~Thread()
         break;
     case READY:
         _scheduler.remove(this);
-        decrement_thread__count();
+        _thread_count--;
         break;
     case SUSPENDED:
         _scheduler.resume(this);
         _scheduler.remove(this);
-        decrement_thread__count();
+        _thread_count--;
         break;
     case WAITING:
         _waiting->remove(this);
         _scheduler.resume(this);
         _scheduler.remove(this);
-        decrement_thread__count();
+        _thread_count--;
         break;
     case FINISHING: // Already called exit()
         break;
@@ -247,7 +231,7 @@ void Thread::yield()
 {
     lock();
 
-    db<Thread>(TRC) << "Thread::yield(running=" << running() << ")" << endl;
+    // db<Thread>(TRC) << "Thread::yield(running=" << running() << ")" << endl;
 
     Thread * prev = running();
     Thread * next = _scheduler.choose_another();
@@ -269,7 +253,8 @@ void Thread::exit(int status)
     prev->_state = FINISHING;
     *reinterpret_cast<int *>(prev->_stack) = status;
 
-    prev->decrement_thread__count();
+    _thread_count--;
+    _total_instructions -= prev->_instructions;
 
     if(prev->_joining) {
         prev->_joining->_state = READY;
@@ -289,12 +274,16 @@ void Thread::sleep(Queue * q)
 {
     db<Thread>(TRC) << "Thread::sleep(running=" << running() << ",q=" << q << ")" << endl;
 
+
     assert(locked()); // locking handled by caller
 
     Thread * prev = running();
     _scheduler.suspend(prev);
     prev->_state = WAITING;
     prev->_waiting = q;
+    _total_instructions -= prev->_instructions;
+
+    
     q->insert(&prev->_link);
 
     Thread * next = _scheduler.chosen();
@@ -313,6 +302,10 @@ void Thread::wakeup(Queue * q)
         Thread * t = q->remove()->object();
         t->_state = READY;
         t->_waiting = 0;
+        _total_instructions += t->_instructions;
+        t->_expiration_time = clock.now() + t->_deadline;
+        _longer_expiration_time = (_longer_expiration_time >= t->_expiration_time ? _longer_expiration_time : t->_expiration_time); // Melhorar;
+
         _scheduler.resume(t);
 
         if(preemptive)
@@ -375,8 +368,8 @@ void Thread::dispatch(Thread * prev, Thread * next, bool charge)
             prev->_state = READY;
         next->_state = RUNNING;
 
-        int perc = calculate_cpu_frequency();
-        db<Thread>(TRC) << "Thread::dispatch(perc=" << perc << ",freq=" << perc << ")" << endl;
+        calculate_cpu_frequency();
+
         db<Thread>(TRC) << "Thread::dispatch(prev=" << prev << ",next=" << next << ")" << endl;
         if(Traits<Thread>::debugged && Traits<Debug>::info) {
             CPU::Context tmp;

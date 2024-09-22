@@ -9,6 +9,8 @@
 #include <utility/handler.h>
 #include <scheduler.h>
 
+
+
 extern "C" { void __exit(); }
 
 __BEGIN_SYS
@@ -21,6 +23,7 @@ class Thread
     friend class Synchronizer_Common;   // for lock() and sleep()
     friend class Alarm;                 // for lock()
     friend class System;                // for init()
+
 
 protected:
     static const bool preemptive = Traits<Thread>::Criterion::preemptive;
@@ -53,21 +56,22 @@ public:
     // Thread Queue
     typedef Ordered_Queue<Thread, Criterion, Scheduler<Thread>::Element> Queue;
 
+
     // Thread Configuration
     struct Configuration {
-        Configuration(State s = READY, Criterion c = NORMAL, unsigned int ss = STACK_SIZE)
-        : state(s), criterion(c), stack_size(ss) {}
+        Configuration(State s = READY, Criterion c = NORMAL, unsigned int i = 0, Second d = 0,unsigned int ss = STACK_SIZE)
+        : state(s), criterion(c), instructions(i), deadline(d), stack_size(ss) {}
 
         State state;
         Criterion criterion;
+        unsigned int instructions;
+        Second deadline;
         unsigned int stack_size;
     };
 
     static volatile unsigned int _thread_count;
-    static volatile unsigned int _high_thread_count;
-    static volatile unsigned int _normal_threads;
-    static volatile unsigned int _low_threads;
-
+    static volatile unsigned int _total_instructions;
+    static Second _longer_expiration_time;
 
 public:
     template<typename ... Tn>
@@ -92,7 +96,7 @@ public:
     static void exit(int status = 0);
 
 protected:
-    void constructor_prologue(unsigned int stack_size);
+    void constructor_prologue(unsigned int stack_size, unsigned int instructions, Second deadline);
     void constructor_epilogue(Log_Addr entry, unsigned int stack_size);
     void increment_thread__count();
     void decrement_thread__count();
@@ -113,7 +117,7 @@ protected:
     static void reschedule();
     static void time_slicer(IC::Interrupt_Id interrupt);
 
-    static int calculate_cpu_frequency();
+    static float calculate_cpu_frequency();
     static void dispatch(Thread * prev, Thread * next, bool charge = true);
 
     static int idle();
@@ -129,7 +133,9 @@ protected:
     Thread * volatile _joining;
     Queue::Element _link;
     Criterion _criterion;
-
+    unsigned int _instructions;
+    Second _deadline;
+    Second _expiration_time;
 
 
     static Scheduler_Timer * _timer;
@@ -142,7 +148,8 @@ inline Thread::Thread(int (* entry)(Tn ...), Tn ... an)
 : _state(READY), _waiting(0), _joining(0), _link(this, NORMAL)
 {
     _criterion = NORMAL;
-    constructor_prologue(STACK_SIZE);
+
+    constructor_prologue(STACK_SIZE, 0, 0);
 
     _context = CPU::init_stack(0, _stack + STACK_SIZE, &__exit, entry, an ...);
     constructor_epilogue(entry, STACK_SIZE);
@@ -153,7 +160,11 @@ inline Thread::Thread(Configuration conf, int (* entry)(Tn ...), Tn ... an)
 : _state(conf.state), _waiting(0), _joining(0), _link(this, conf.criterion)
 {
     _criterion = conf.criterion;
-    constructor_prologue(conf.stack_size);
+    _deadline = conf.deadline;
+    _instructions = conf.instructions;
+    _expiration_time =  conf.deadline;
+
+    constructor_prologue(conf.stack_size, conf.instructions, conf.deadline);
     _context = CPU::init_stack(0, _stack + conf.stack_size, &__exit, entry, an ...);
     constructor_epilogue(entry, conf.stack_size);
 }

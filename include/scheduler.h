@@ -47,6 +47,7 @@ protected:
 // Priority (static and dynamic)
 class Priority: public Scheduling_Criterion_Common
 {
+    
 public:
     template <typename ... Tn>
     Priority(int p = NORMAL, Tn & ... an): _priority(p) {}
@@ -82,6 +83,8 @@ public:
     template <typename ... Tn>
     FCFS(int p = NORMAL, Tn & ... an);
 };
+
+
 
 __END_SYS
 
