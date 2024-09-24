@@ -74,6 +74,14 @@ public:
     static volatile unsigned int _total_instructions;
     static Second _longer_expiration_time;
 
+    int totalSize;
+    int totalTime;
+    int CPUfreq;
+    Thread* leaderHead = nullptr;
+    int deadline;
+    int instructions;
+
+
 public:
     template <typename... Tn>
     Thread(int (*entry)(Tn...), Tn... an);

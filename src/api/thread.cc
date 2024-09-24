@@ -40,6 +40,121 @@ float Thread::calculate_cpu_frequency(){
     return  frequency;
 }
 
+// Changes CPU frequency used for this thread and neighbours
+void insertion() {
+
+    // Please don't let it divide by 0 on avaiable time. (to-do)
+    leaderHead = this;
+
+    Thread* MT = _link._next->_object; // Task whose time will be shrunk
+
+    if (_link._prev == nullptr) {
+        totalTime = deadline;
+        CPUfreq = totalSize/totalTime;
+        MT = _link._next->object;
+        if (MT != nullptr) {
+            MT->totalTime -= totalTime;
+            MT->CPUfreq = MT->totalSize/MT->totalTime;
+            if (MT != MT->leaderHead) {
+                MT->leaderHead->totalTime -= totalTime;
+                MT->leaderHead->CPUfreq = MT->leaderHead->totalSize/MT->leaderHead->totalTime;
+            }
+            MT->dissolve();
+        } else {
+            return;
+        }
+    } else {
+        totalTime = deadline - _link._prev->deadline;
+        CPUfreq = totalSize/totalTime;
+        if (MT != nullptr) {
+            MT->totalTime -= totalTime;
+            MT->CPUfreq = MT->totalSize/MT->totalTime;
+            if (MT != _link._prev->leaderHead and MT != MT->leaderHead) {
+                MT->leaderHead->totalTime -= totalTime;
+                MT->leaderHead->CPUfreq = MT->leaderHead->totalSize/MT->leaderHead->totalTime;
+            }
+        }
+        if (MT == nullptr or (_prev != nullptr && _link._prev->leaderHead != MT->leaderHead && _link._prev->leaderHead != MT)) { // Task inserted between two Blocks
+            conquer();
+        } else { // Task inserted between a Block
+            _link._prev->leaderHead->dissolve();
+        }
+    }
+}
+
+// Function that fuses two Blocks, called when LeftBlock (oldLeader)'s frequency is lower than RightBlock (this)'s frequency
+// if we have:
+    // (A, B, C, D, E, F) being tasks
+    // ABC' being a block of tasks A B C with C' as the leader
+// This function does: ABC' DEF' -> ABCDEF'
+// Called by newLeader (oldLeader's Right Block)
+void coup(Thread* oldLeader) {
+    Thread* head = oldLeader->leaderHead;
+    totalSize += oldLeader->totalSize;
+    totalTime += oldLeader->totalTime;
+    CPUfreq = totalSize/totalTime;
+    oldLeader->totalSize = oldLeader->instructions;
+    if (oldLeader->_link._prev == nullptr) {
+        oldLeader->totaltime = oldLeader->deadline;
+    } else {
+        oldLeader->totaltime = oldLeader->deadline - oldLeader->_prev->_object->deadline;
+    }
+    oldLeader->CPUfreq = oldLeader->totalSize/oldLeader->totalTime;
+
+
+    leaderHead = head;
+
+    while (head != this) {
+        head->leaderHead = this;
+        head = head->_next->_object;
+    }
+}
+
+// called on I'
+// will do (ABC' D' EF' GHI') -> (ABC' D' EFGHI') -> (ABC' DEFGHI')
+void conquer() {
+    Thread* leftKingdom = leaderHead->_prev->_object; // left block that might be consumed by current block
+
+    while (leftKingdom != nullptr and leftKingdom->CPUfreq < CPUfreq) {
+        coup(leftKingdom);
+        leftKingdom = leaderHead->_prev;
+    }
+
+    if (_link._next != nullptr and _link._next->_object->leaderHead->CPUfreq > CPUfreq) {
+        _link._next->_object->leaderHead->coup(this);
+        // newEmperor->leaderHead->_right->_object->conquer(this); Too ineficient for too little gain??
+    }
+}
+
+// ABCHDEFG' -> A' B' C' H' D' E' F' G' -> conquer(G') ^ conquer(F') ^ ...
+// Called on Leader G'
+void dissolve() {
+    Thread* head = leaderHead;
+
+    // resseting leader's stats
+    totalSize = instructions;
+    totaltime = deadline - _link._prev->deadline;
+    CPUfreq = totalSize/totalTime;
+
+    // breaking off each part of Block
+    Thread* temp = this;
+    while (temp != head) {
+        temp->leaderHead = temp;
+        temp = temp->_link._prev->_object;
+    }
+    head->leaderHead = head;
+
+
+    // Giving the chance for each new Block to conquer others
+    temp = this;
+    while (temp != nullptr and temp != head) {
+        temp->conquer();
+        temp = temp->leaderHead->_link._prev->_object;
+    }
+}
+
+
+
 void Thread::constructor_prologue(unsigned int stack_size, unsigned int instructions, Second deadline)
 {
     lock();
@@ -70,6 +185,8 @@ void Thread::constructor_epilogue(Log_Addr entry, unsigned int stack_size)
 
     if(preemptive && (_state == READY) && (_link.rank() != IDLE))
         reschedule();
+
+    insertion();
 
     unlock();
 }
