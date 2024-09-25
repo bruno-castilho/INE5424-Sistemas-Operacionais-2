@@ -184,8 +184,13 @@ void Thread::constructor_epilogue(Log_Addr entry, unsigned int stack_size)
 
     assert((_state != WAITING) && (_state != FINISHING)); // invalid states
 
+    if (_link.rank() != IDLE)
+        _task->enroll(this);
+
     if ((_state != READY) && (_state != RUNNING))
         _scheduler.suspend(this);
+
+    criterion().handle(Criterion::CREATE);
 
     if (preemptive && (_state == READY) && (_link.rank() != IDLE))
         reschedule();
@@ -232,6 +237,8 @@ Thread::~Thread()
     case FINISHING: // Already called exit()
         break;
     }
+
+    _task->dismiss(this);
 
     if (_joining)
         _joining->resume();
@@ -371,6 +378,7 @@ void Thread::exit(int status)
     _scheduler.remove(prev);
     prev->_state = FINISHING;
     *reinterpret_cast<int *>(prev->_stack) = status;
+    prev->criterion().handle(Criterion::FINISH);
 
     _thread_count--;
     _total_instructions -= prev->_instructions;
@@ -451,6 +459,75 @@ void Thread::wakeup_all(Queue *q)
     }
 }
 
+void Thread::prioritize(Queue *q)
+{
+    assert(locked()); // locking handled by caller
+
+    if (priority_inversion_protocol == Traits<Build>::NONE)
+        return;
+
+    Thread *r = running();
+
+    db<Thread>(TRC) << "Thread::prioritize(q=" << q << ") [running=" << r << "]" << endl;
+
+    for (Queue::Iterator i = q->begin(); i != q->end(); ++i)
+    {
+        Thread *t = i->object();
+        if (t->priority() > r->priority())
+        {
+            t->_natural_priority = t->criterion();
+            Criterion c = (priority_inversion_protocol == Traits<Build>::CEILING) ? CEILING : r->criterion();
+            if (t->_state == READY)
+            {
+                _scheduler.suspend(t);
+                t->_link.rank(c);
+                _scheduler.resume(t);
+            }
+            else if (t->state() == WAITING)
+            {
+                t->_waiting->remove(&t->_link);
+                t->_link.rank(c);
+                t->_waiting->insert(&t->_link);
+            }
+            else
+                t->_link.rank(c);
+        }
+    }
+}
+
+void Thread::deprioritize(Queue *q)
+{
+    assert(locked()); // locking handled by caller
+
+    if (priority_inversion_protocol == Traits<Build>::NONE)
+        return;
+
+    db<Thread>(TRC) << "Thread::deprioritize(q=" << q << ") [running=" << running() << "]" << endl;
+
+    for (Queue::Iterator i = q->begin(); i != q->end(); ++i)
+    {
+        Thread *t = i->object();
+        Criterion c = t->_natural_priority;
+        if (t->priority() != c)
+        {
+            if (t->_state == READY)
+            {
+                _scheduler.suspend(t);
+                t->_link.rank(c);
+                _scheduler.resume(t);
+            }
+            else if (t->state() == WAITING)
+            {
+                t->_waiting->remove(&t->_link);
+                t->_link.rank(c);
+                t->_waiting->insert(&t->_link);
+            }
+            else
+                t->_link.rank(c);
+        }
+    }
+}
+
 void Thread::reschedule()
 {
     if (!Criterion::timed || Traits<Thread>::hysterically_debugged)
@@ -480,6 +557,13 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
 
     if (prev != next)
     {
+        if (Criterion::dynamic)
+        {
+            prev->criterion().handle(Criterion::CHARGE | Criterion::LEAVE);
+            for_all_threads(Criterion::UPDATE);
+            next->criterion().handle(Criterion::AWARD | Criterion::ENTER);
+        }
+
         if (prev->_state == RUNNING)
             prev->_state = READY;
         next->_state = RUNNING;

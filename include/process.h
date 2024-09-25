@@ -27,6 +27,7 @@ class Thread
 
 protected:
     static const bool preemptive = Traits<Thread>::Criterion::preemptive;
+    static const int priority_inversion_protocol = Traits<Thread>::priority_inversion_protocol;
     static const unsigned int QUANTUM = Traits<Thread>::QUANTUM;
     static const unsigned int STACK_SIZE = Traits<Application>::STACK_SIZE;
 
@@ -48,6 +49,7 @@ public:
     typedef Traits<Thread>::Criterion Criterion;
     enum
     {
+        CEILING = Criterion::CEILING,
         HIGH = Criterion::HIGH,
         NORMAL = Criterion::NORMAL,
         LOW = Criterion::LOW,
@@ -77,10 +79,9 @@ public:
     int totalSize;
     int totalTime;
     int CPUfreq;
-    Thread* leaderHead = nullptr;
+    Thread *leaderHead = nullptr;
     int deadline;
     int instructions;
-
 
 public:
     template <typename... Tn>
@@ -91,9 +92,12 @@ public:
 
     const volatile State &state() const { return _state; }
     Criterion &criterion() { return const_cast<Criterion &>(_link.rank()); }
+    volatile Criterion::Statistics &statistics() { return criterion().statistics(); }
 
     const volatile Criterion &priority() const { return _link.rank(); }
     void priority(Criterion p);
+
+    Task *task() const { return _task; }
 
     int join();
     void pass();
@@ -118,9 +122,12 @@ protected:
     static void unlock() { CPU::int_enable(); }
     static bool locked() { return CPU::int_disabled(); }
 
-    static void sleep(Queue *q);
-    static void wakeup(Queue *q);
-    static void wakeup_all(Queue *q);
+    static void sleep(Queue *queue);
+    static void wakeup(Queue *queue);
+    static void wakeup_all(Queue *queue);
+
+    static void prioritize(Queue *queue);
+    static void deprioritize(Queue *queue);
 
     static void reschedule();
     static void time_slicer(IC::Interrupt_Id interrupt);
@@ -128,15 +135,25 @@ protected:
     static float calculate_cpu_frequency();
     static void dispatch(Thread *prev, Thread *next, bool charge = true);
 
+    static void for_all_threads(Criterion::Event event)
+    {
+        for (Queue::Iterator i = _scheduler.begin(); i != _scheduler.end(); ++i)
+            if (i->object()->criterion() != IDLE)
+                i->object()->criterion().handle(event);
+    }
+
     static int idle();
 
 private:
     static void init();
 
 protected:
+    Task *_task;
+
     char *_stack;
     Context *volatile _context;
     volatile State _state;
+    Criterion _natural_priority;
     Queue *_waiting;
     Thread *volatile _joining;
     Queue::Element _link;
@@ -150,9 +167,69 @@ protected:
     static Scheduler<Thread> _scheduler;
 };
 
+class Task
+{
+    friend class Thread;    // for Task(), enroll() and dismiss()
+    friend class Alarm;     // for enroll() and dismiss()
+    friend class Mutex;     // for enroll() and dismiss()
+    friend class Condition; // for enroll() and dismiss()
+    friend class Semaphore; // for enroll() and dismiss()
+    friend class Segment;   // for enroll() and dismiss()
+
+private:
+    typedef Typed_List<> Resources;
+    typedef Resources::Element Resource;
+
+protected:
+    // This constructor is only used by Thread::init()
+    template <typename... Tn>
+    Task(int (*entry)(Tn...), Tn... an)
+    {
+        db<Task, Init>(TRC) << "Task(entry=" << reinterpret_cast<void *>(entry) << ") => " << this << endl;
+
+        _current = this;
+        _main = new (SYSTEM) Thread(Thread::Configuration(Thread::RUNNING, Thread::MAIN), entry, an...);
+    }
+
+public:
+    ~Task();
+
+    Thread *main() const { return _main; }
+
+    int join() { return _main->join(); }
+
+    static Task *volatile self() { return current(); }
+
+private:
+    template <typename T>
+    void enroll(T *o)
+    {
+        db<Task>(TRC) << "Task::enroll(t=" << Type<T>::ID << ", o=" << o << ")" << endl;
+        _resources.insert(new (SYSTEM) Resource(o, Type<T>::ID));
+    }
+    void dismiss(void *o)
+    {
+        db<Task>(TRC) << "Task::dismiss(" << o << ")" << endl;
+        Resource *r = _resources.remove(o);
+        if (r)
+            delete r;
+    }
+
+    static Task *volatile current() { return _current; }
+    static void current(Task *t) { _current = t; }
+
+    static void init();
+
+private:
+    Thread *_main;
+    Resources _resources;
+
+    static Task *volatile _current;
+};
+
 template <typename... Tn>
 inline Thread::Thread(int (*entry)(Tn...), Tn... an)
-    : _state(READY), _waiting(0), _joining(0), _link(this, NORMAL)
+    : _task(Task::self()), _state(READY), _waiting(0), _joining(0), _link(this, NORMAL)
 {
     _criterion = NORMAL;
 
@@ -164,7 +241,7 @@ inline Thread::Thread(int (*entry)(Tn...), Tn... an)
 
 template <typename... Tn>
 inline Thread::Thread(Configuration conf, int (*entry)(Tn...), Tn... an)
-    : _state(conf.state), _waiting(0), _joining(0), _link(this, conf.criterion)
+    : _task(Task::self()), _state(conf.state), _waiting(0), _joining(0), _link(this, conf.criterion)
 {
     _criterion = conf.criterion;
     _deadline = conf.deadline;

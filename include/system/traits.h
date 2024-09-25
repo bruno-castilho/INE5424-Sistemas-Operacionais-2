@@ -205,6 +205,9 @@ struct Traits_Tokens
     // SmartData predictors
     enum :unsigned char {NONE, LVP, DBP};
 
+    // Priority inversion protocols
+    enum {CEILING = NONE + 1, INHERITANCE};
+
     // Default aspects
     typedef ALIST<> ASPECTS;
 };
