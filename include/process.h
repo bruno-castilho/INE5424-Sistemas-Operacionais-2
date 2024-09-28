@@ -27,7 +27,7 @@ class Thread
 
 protected:
     static const bool preemptive = Traits<Thread>::Criterion::preemptive;
-    static const int priority_inversion_protocol = Traits<Thread>::priority_inversion_protocol;
+    static const int priority_inversion_protocol = Traits<Thread>::NONE;
     static const unsigned int QUANTUM = Traits<Thread>::QUANTUM;
     static const unsigned int STACK_SIZE = Traits<Application>::STACK_SIZE;
 
