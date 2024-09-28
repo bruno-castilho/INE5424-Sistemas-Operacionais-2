@@ -568,7 +568,6 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
             prev->_state = READY;
         next->_state = RUNNING;
 
-        calculate_cpu_frequency();
 
         db<Thread>(TRC) << "Thread::dispatch(prev=" << prev << ",next=" << next << ")" << endl;
         if (Traits<Thread>::debugged && Traits<Debug>::info)
