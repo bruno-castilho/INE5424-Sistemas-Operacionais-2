@@ -17,8 +17,19 @@ Second Thread::_longer_expiration_time;
 Scheduler_Timer *Thread::_timer;
 Scheduler<Thread> Thread::_scheduler;
 
-float Thread::calculate_cpu_frequency()
-{
+// to-do: Se uma thread terminar de executar, e ela for a cabeça de uma Leader (estiver guardada no ponteiro leaderHead da lider) precisa passar pra thread da direita virar cabeça
+// A,BCDE' -> finish(A) -> B,CDE'
+// _link._next->leaderHead->leaderHead = _link._next;
+
+// to-do: First 5 executions of a task should ignore CPUfrequency, so we can make a profiling of it's execution
+// After 5 executions, use our algorithm
+
+void Thread::set_cpu_frequency() { // P2-tool: sets frequency for this task
+    Hertz finalFrequency = leaderHead->CPUfreq; // bug: May need to type cast into Hertz?
+    CPU::clock(finalFrequency);
+}
+
+float Thread::calculate_cpu_frequency() {
     float max_frequency = 3.2;
     float max_instructions_per_second = 70;
 
@@ -36,6 +47,9 @@ float Thread::calculate_cpu_frequency()
                     << ",fre=" << frequency << ")" << endl;
     return frequency;
 }
+
+
+
 
 // Changes CPU frequency used for this thread and neighbours
 // void insertion() {
@@ -85,27 +99,22 @@ float Thread::calculate_cpu_frequency()
 // ABC' being a block of tasks A B C with C' as the leader
 // This function does: ABC' DEF' -> ABCDEF'
 // Called by newLeader (oldLeader's Right Block)
-// void coup(Thread *oldLeader)
-// {
+// void coup(Thread *oldLeader) {
 //     Thread *head = oldLeader->leaderHead;
 //     totalSize += oldLeader->totalSize;
 //     totalTime += oldLeader->totalTime;
 //     CPUfreq = totalSize / totalTime;
 //     oldLeader->totalSize = oldLeader->instructions;
-//     if (oldLeader->_link._prev == nullptr)
-//     {
+//     if (oldLeader->_link._prev == nullptr) {
 //         oldLeader->totaltime = oldLeader->deadline;
-//     }
-//     else
-//     {
+//     } else {
 //         oldLeader->totaltime = oldLeader->deadline - oldLeader->_prev->_object->deadline;
 //     }
 //     oldLeader->CPUfreq = oldLeader->totalSize / oldLeader->totalTime;
 
 //     leaderHead = head;
 
-//     while (head != this)
-//     {
+//     while (head != this) {
 //         head->leaderHead = this;
 //         head = head->_next->_object;
 //     }
@@ -113,18 +122,15 @@ float Thread::calculate_cpu_frequency()
 
 // called on I'
 // will do (ABC' D' EF' GHI') -> (ABC' D' EFGHI') -> (ABC' DEFGHI')
-// void conquer()
-// {
+// void conquer() {
 //     Thread *leftKingdom = leaderHead->_prev->_object; // left block that might be consumed by current block
 
-//     while (leftKingdom != nullptr and leftKingdom->CPUfreq < CPUfreq)
-//     {
+//     while (leftKingdom != nullptr and leftKingdom->CPUfreq < CPUfreq) {
 //         coup(leftKingdom);
 //         leftKingdom = leaderHead->_prev;
 //     }
 
-//     if (_link._next != nullptr and _link._next->_object->leaderHead->CPUfreq > CPUfreq)
-//     {
+//     if (_link._next != nullptr and _link._next->_object->leaderHead->CPUfreq > CPUfreq) {
 //         _link._next->_object->leaderHead->coup(this);
 //         // newEmperor->leaderHead->_right->_object->conquer(this); Too ineficient for too little gain??
 //     }
@@ -132,8 +138,7 @@ float Thread::calculate_cpu_frequency()
 
 // ABCHDEFG' -> A' B' C' H' D' E' F' G' -> conquer(G') ^ conquer(F') ^ ...
 // Called on Leader G'
-// void dissolve()
-// {
+// void dissolve() {
 //     Thread *head = leaderHead;
 
 //     // resseting leader's stats
@@ -143,8 +148,7 @@ float Thread::calculate_cpu_frequency()
 
 //     // breaking off each part of Block
 //     Thread *temp = this;
-//     while (temp != head)
-//     {
+//     while (temp != head) {
 //         temp->leaderHead = temp;
 //         temp = temp->_link._prev->_object;
 //     }
@@ -152,8 +156,7 @@ float Thread::calculate_cpu_frequency()
 
 //     // Giving the chance for each new Block to conquer others
 //     temp = this;
-//     while (temp != nullptr and temp != head)
-//     {
+//     while (temp != nullptr and temp != head) {
 //         temp->conquer();
 //         temp = temp->leaderHead->_link._prev->_object;
 //     }
@@ -172,8 +175,7 @@ void Thread::constructor_prologue(unsigned int stack_size, unsigned int instruct
     _stack = new (SYSTEM) char[stack_size];
 }
 
-void Thread::constructor_epilogue(Log_Addr entry, unsigned int stack_size)
-{
+void Thread::constructor_epilogue(Log_Addr entry, unsigned int stack_size) {
     db<Thread>(TRC) << "Thread(entry=" << entry
                     << ",state=" << _state
                     << ",priority=" << _link.rank()
@@ -195,7 +197,11 @@ void Thread::constructor_epilogue(Log_Addr entry, unsigned int stack_size)
     if (preemptive && (_state == READY) && (_link.rank() != IDLE))
         reschedule();
 
-    // insertion();
+    // insertion(); // Calls our algorithm
+    // PMU::config(1, PMU::UNHALTED_CORE_CYCLES); // P2-tool: Use this line to set PMU to start recording cycle counts. the first number indicates what channel the result will be avaiable (0, 1, 2 or 3)
+    // to-do: PMU::config should only be called once, not every thread... how? initiate it in CPU? i don't know...
+    // PMU::read(1) // P2-tool: Gets current value in channel 1. if channel 1 is Unhalted core cycles, will return it.
+
 
     unlock();
 }
@@ -340,8 +346,7 @@ void Thread::resume()
 
     db<Thread>(TRC) << "Thread::resume(this=" << this << ")" << endl;
 
-    if (_state == SUSPENDED)
-    {
+    if (_state == SUSPENDED) {
         _state = READY;
         _scheduler.resume(this);
 
@@ -407,6 +412,7 @@ void Thread::sleep(Queue *q)
     _scheduler.suspend(prev);
     prev->_state = WAITING;
     prev->_waiting = q;
+
     _total_instructions -= prev->_instructions;
 
     q->insert(&prev->_link);

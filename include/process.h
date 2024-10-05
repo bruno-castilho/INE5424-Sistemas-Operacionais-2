@@ -82,6 +82,7 @@ public:
     Thread *leaderHead = nullptr;
     int deadline;
     int instructions;
+    Count cycle_count = 0; // P2-tool: stores how many cycles have been executed by this thread
 
 public:
     template <typename... Tn>
