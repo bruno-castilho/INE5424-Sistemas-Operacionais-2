@@ -6,6 +6,9 @@
 
 using namespace EPOS;
 
+
+const Hertz frequency = 1124908640;
+
 const unsigned int iterations = 100;
 const Milisecond period_a = 100;
 const Milisecond period_b = 80;
@@ -50,6 +53,13 @@ inline void exec(char c, Milisecond time = 0)
 {
     Milisecond elapsed = chrono.read() / 1000;
 
+    cout <<  "\nFREQUENCY={maxf="<<  Periodic_Thread::get_max_cpu_frequency() 
+         << ",minf=" <<  Periodic_Thread::get_min_cpu_frequency() 
+         << ",curf=" << Periodic_Thread::get_cpu_frequency() 
+         << "}]"
+         << endl;
+
+
     cout << "\n" << elapsed << " " << c << "-1"
          << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",c=" << thread_a->statistics().job_utilization << "}"
          <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",c=" << thread_b->statistics().job_utilization << "}"
@@ -83,7 +93,11 @@ int main()
     callibrate();
     cout << base_loop_count << " iterations per ms!" << endl;
 
+
+    cout << "\nSet CPU frequency to " << frequency << " Hz." << endl;
+    Periodic_Thread::set_cpu_frequency(frequency);
     cout << "\nThreads will now be created and I'll wait for them to finish..." << endl;
+
 
     // p,d,c,act,t
     thread_a = new Periodic_Thread(RTConf(period_a * 1000, 0, wcet_a * 1000, 0, iterations), &func_a);

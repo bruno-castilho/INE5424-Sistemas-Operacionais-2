@@ -82,7 +82,7 @@ public:
     Thread *leaderHead = nullptr;
     int deadline;
     int instructions;
-    Count cycle_count = 0; // P2-tool: stores how many cycles have been executed by this thread
+    // Count cycle_count = 0; // P2-tool: stores how many cycles have been executed by this thread
 
 public:
     template <typename... Tn>
@@ -108,6 +108,10 @@ public:
     static Thread *volatile self() { return running(); }
     static void yield();
     static void exit(int status = 0);
+    static void set_cpu_frequency(Hertz f);
+    static Hertz get_cpu_frequency();
+    static Hertz get_max_cpu_frequency();
+    static Hertz get_min_cpu_frequency();
 
 protected:
     void constructor_prologue(unsigned int stack_size, unsigned int instructions, Second deadline);
@@ -134,6 +138,7 @@ protected:
     static void time_slicer(IC::Interrupt_Id interrupt);
 
     static float calculate_cpu_frequency();
+
     static void dispatch(Thread *prev, Thread *next, bool charge = true);
 
     static void for_all_threads(Criterion::Event event)

@@ -24,10 +24,24 @@ Scheduler<Thread> Thread::_scheduler;
 // to-do: First 5 executions of a task should ignore CPUfrequency, so we can make a profiling of it's execution
 // After 5 executions, use our algorithm
 
-void Thread::set_cpu_frequency() { // P2-tool: sets frequency for this task
-    Hertz finalFrequency = leaderHead->CPUfreq; // bug: May need to type cast into Hertz?
-    CPU::clock(finalFrequency);
+void Thread::set_cpu_frequency(Hertz f) { // P2-tool: sets frequency for this task
+    CPU::clock(f);
 }
+
+Hertz Thread::get_cpu_frequency() { // P2-tool: sets frequency for this task
+    return CPU::clock();
+}
+
+
+Hertz Thread::get_max_cpu_frequency() { // P2-tool: sets frequency for this task
+    return CPU::max_clock();
+}
+
+
+Hertz Thread::get_min_cpu_frequency() { // P2-tool: sets frequency for this task
+    return CPU::min_clock();
+}
+
 
 float Thread::calculate_cpu_frequency() {
     float max_frequency = 3.2;
