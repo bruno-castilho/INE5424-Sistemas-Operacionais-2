@@ -8,11 +8,8 @@
 __BEGIN_SYS
 
 extern OStream kout;
-extern Clock clock;
 
 volatile unsigned int Thread::_thread_count;
-volatile unsigned int Thread::_total_instructions;
-Second Thread::_longer_expiration_time;
 
 Scheduler_Timer *Thread::_timer;
 Scheduler<Thread> Thread::_scheduler;
@@ -40,26 +37,6 @@ Hertz Thread::get_max_cpu_frequency() { // P2-tool: sets frequency for this task
 
 Hertz Thread::get_min_cpu_frequency() { // P2-tool: sets frequency for this task
     return CPU::min_clock();
-}
-
-
-float Thread::calculate_cpu_frequency() {
-    float max_frequency = 3.2;
-    float max_instructions_per_second = 70;
-
-    Second current_time = clock.now();
-    Second available_time = _longer_expiration_time - current_time;
-    float instructions_per_second = _total_instructions / available_time;
-    float frequency = max_frequency * instructions_per_second / max_instructions_per_second;
-
-    db<Thread>(TRC) << "Thread::calculate_cpu_frequency("
-                    << "mfre=" << max_frequency
-                    << ",mipm=" << max_instructions_per_second
-                    << ",cur=" << current_time
-                    << ",ava=" << available_time
-                    << ",ipm=" << instructions_per_second
-                    << ",fre=" << frequency << ")" << endl;
-    return frequency;
 }
 
 
@@ -176,13 +153,10 @@ float Thread::calculate_cpu_frequency() {
 //     }
 // }
 
-void Thread::constructor_prologue(unsigned int stack_size, unsigned int instructions, Second deadline)
+void Thread::constructor_prologue(unsigned int stack_size)
 {
     lock();
     _thread_count++;
-    _expiration_time = clock.now() + deadline;
-    _total_instructions += instructions;
-    _longer_expiration_time = (_longer_expiration_time >= _expiration_time ? _longer_expiration_time : _expiration_time); // Melhorar;
 
     _scheduler.insert(this);
 
@@ -210,11 +184,6 @@ void Thread::constructor_epilogue(Log_Addr entry, unsigned int stack_size) {
 
     if (preemptive && (_state == READY) && (_link.rank() != IDLE))
         reschedule();
-
-    // insertion(); // Calls our algorithm
-    // PMU::config(1, PMU::UNHALTED_CORE_CYCLES); // P2-tool: Use this line to set PMU to start recording cycle counts. the first number indicates what channel the result will be avaiable (0, 1, 2 or 3)
-    // to-do: PMU::config should only be called once, not every thread... how? initiate it in CPU? i don't know...
-    // PMU::read(1) // P2-tool: Gets current value in channel 1. if channel 1 is Unhalted core cycles, will return it.
 
 
     unlock();
@@ -400,7 +369,6 @@ void Thread::exit(int status)
     prev->criterion().handle(Criterion::FINISH);
 
     _thread_count--;
-    _total_instructions -= prev->_instructions;
 
     if (prev->_joining)
     {
@@ -427,7 +395,6 @@ void Thread::sleep(Queue *q)
     prev->_state = WAITING;
     prev->_waiting = q;
 
-    _total_instructions -= prev->_instructions;
 
     q->insert(&prev->_link);
 
@@ -447,9 +414,6 @@ void Thread::wakeup(Queue *q)
         Thread *t = q->remove()->object();
         t->_state = READY;
         t->_waiting = 0;
-        _total_instructions += t->_instructions;
-        t->_expiration_time = clock.now() + t->_deadline;
-        _longer_expiration_time = (_longer_expiration_time >= t->_expiration_time ? _longer_expiration_time : t->_expiration_time); // Melhorar;
 
         _scheduler.resume(t);
 
@@ -586,6 +550,8 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
 
         if (prev->_state == RUNNING)
             prev->_state = READY;
+
+
         next->_state = RUNNING;
 
 
@@ -603,6 +569,8 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
         // passing the volatile to switch_constext forces it to push prev onto the stack,
         // disrupting the context (it doesn't make a difference for Intel, which already saves
         // parameters on the stack anyway).
+        PMU::config(3, PMU::UNHALTED_CORE_CYCLES);
+        PMU::config(4, PMU::INSTRUCTIONS_RETIRED);
         CPU::switch_context(const_cast<Context **>(&prev->_context), next->_context);
     }
 }
