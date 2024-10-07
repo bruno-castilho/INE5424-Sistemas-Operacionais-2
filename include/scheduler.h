@@ -285,6 +285,21 @@ public:
     void handle(Event event);
 };
 
+
+class MyScheduler : public EDF
+{
+public:
+    MyScheduler(int p = APERIODIC) : EDF(p) {
+        _statistics.cycle_count = 0xFFFFFFFFFFFFFFFF;
+        _statistics.instructions = 0xFFFFFFFFFFFFFFFF;
+    }
+    MyScheduler(Microsecond p, Microsecond d = SAME, Microsecond c = UNKNOWN) : EDF(p, d, c){
+        _statistics.cycle_count = 1000;
+        _statistics.instructions = 1000;
+    };
+
+};
+
 __END_SYS
 
 #endif

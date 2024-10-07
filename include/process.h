@@ -9,6 +9,7 @@
 #include <utility/handler.h>
 #include <scheduler.h>
 
+
 extern "C"
 {
     void __exit();
@@ -71,12 +72,10 @@ public:
         unsigned int stack_size;
     };
 
-
-    // int totalSize;
-    // int totalTime;
-    // int CPUfreq;
-    // Thread *leaderHead = nullptr;
-
+    unsigned long long frequency;
+    unsigned long long instructions;
+    int avaliable_time;
+    Thread *leaderHead;
 
 public:
     template <typename... Tn>
@@ -139,6 +138,10 @@ protected:
             if (i->object()->criterion() != IDLE)
                 i->object()->criterion().handle(event);
     }
+
+
+
+    static void update_blocks(Thread *prev);
 
     static int idle();
 

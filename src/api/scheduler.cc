@@ -51,8 +51,8 @@ void RT_Common::handle(Event event)
         _statistics.job_utilization += cpu_time;
         //        }
 
-        _statistics.cycle_count = PMU::read(3);
-        _statistics.instructions = PMU::read(4);
+        // _statistics.cycle_count = PMU::read(3);
+        // _statistics.instructions = PMU::read(4);
     }
     if (periodic() && (event & JOB_RELEASE))
     {

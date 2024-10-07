@@ -61,9 +61,9 @@ inline void exec(char c, Milisecond time = 0)
 
 
     cout << "\n" << elapsed << " " << c << "-1"
-         << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",c=" << thread_a->statistics().cycle_count << ",i=" << thread_a->statistics().instructions << "}"
-         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",c=" << thread_b->statistics().cycle_count << ",i=" << thread_b->statistics().instructions << "}"
-         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",c=" << thread_c->statistics().cycle_count << ",i=" << thread_c->statistics().instructions << "}]";
+         << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",a=" << thread_a->leaderHead->avaliable_time << ",i=" << thread_a->leaderHead->instructions << ",f="  << thread_a->leaderHead->frequency << "}"
+         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",a=" << thread_b->leaderHead->avaliable_time << ",i=" << thread_b->leaderHead->instructions << ",f="  << thread_b->leaderHead->frequency << "}"
+         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",a=" << thread_c->leaderHead->avaliable_time << ",i=" << thread_c->leaderHead->instructions << ",f="  << thread_c->leaderHead->frequency << "}]";
 
 
     for(unsigned long i = 0; i < time; i++)
@@ -73,9 +73,9 @@ inline void exec(char c, Milisecond time = 0)
 
     elapsed = chrono.read() / 1000;
     cout << "\n" << elapsed << " " << c << "-2"
-            << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",c=" << thread_a->statistics().cycle_count << ",i=" << thread_a->statistics().instructions << "}"
-            <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",c=" << thread_b->statistics().cycle_count << ",i=" << thread_b->statistics().instructions << "}"
-            <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",c=" << thread_c->statistics().cycle_count << ",i=" << thread_c->statistics().instructions << "}]";
+            << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",a=" << thread_a->leaderHead->avaliable_time << ",i=" << thread_a->leaderHead->instructions << ",f="  << thread_a->leaderHead->frequency << "}"
+            <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",a=" << thread_b->leaderHead->avaliable_time << ",i=" << thread_b->leaderHead->instructions << ",f="  << thread_b->leaderHead->frequency << "}"
+            <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",a=" << thread_c->leaderHead->avaliable_time << ",i=" << thread_c->leaderHead->instructions << ",f="  << thread_c->leaderHead->frequency << "}]";
     
 }
 
@@ -100,9 +100,9 @@ int main()
 
 
     // p,d,c,act,t
-    thread_a = new Periodic_Thread(RTConf(period_a * 1000, 0, wcet_a * 1000, 0, iterations), &func_a);
-    thread_b = new Periodic_Thread(RTConf(period_b * 1000, 0, wcet_b * 1000, 0, iterations), &func_b);
-    thread_c = new Periodic_Thread(RTConf(period_c * 1000, 0, wcet_c * 1000, 0, iterations), &func_c);
+    thread_a = new Periodic_Thread(RTConf(period_a * 1000, period_a * 1000, wcet_a * 1000, 0, iterations), &func_a);
+    thread_b = new Periodic_Thread(RTConf(period_b * 1000, period_b * 1000, wcet_b * 1000, 0, iterations), &func_b);
+    thread_c = new Periodic_Thread(RTConf(period_c * 1000, period_c * 1000, wcet_c * 1000, 0, iterations), &func_c);
 
     exec('M');
 
