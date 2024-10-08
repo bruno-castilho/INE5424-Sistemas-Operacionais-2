@@ -569,8 +569,7 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
         // passing the volatile to switch_constext forces it to push prev onto the stack,
         // disrupting the context (it doesn't make a difference for Intel, which already saves
         // parameters on the stack anyway).
-        PMU::config(3, PMU::UNHALTED_CORE_CYCLES);
-        PMU::config(4, PMU::INSTRUCTIONS_RETIRED);
+        PMU::reset(3);
         CPU::switch_context(const_cast<Context **>(&prev->_context), next->_context);
     }
 }
