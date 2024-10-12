@@ -23,7 +23,7 @@ void CPU::init()
     // Initialize the PMU	
     if(Traits<PMU>::enabled){
         PMU::init();
-        PMU::config(3, PMU::UNHALTED_CORE_CYCLES);
+        // PMU::config(3, PMU::UNHALTED_CORE_CYCLES);
     }
 }
 
