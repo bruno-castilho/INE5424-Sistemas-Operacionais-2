@@ -14,144 +14,65 @@ volatile unsigned int Thread::_thread_count;
 Scheduler_Timer *Thread::_timer;
 Scheduler<Thread> Thread::_scheduler;
 
-// to-do: Se uma thread terminar de executar, e ela for a cabeça de uma Leader (estiver guardada no ponteiro leaderHead da lider) precisa passar pra thread da direita virar cabeça
-// A,BCDE' -> finish(A) -> B,CDE'
-// _link._next->leaderHead->leaderHead = _link._next;
-
-// to-do: First 5 executions of a task should ignore CPUfrequency, so we can make a profiling of it's execution
-// After 5 executions, use our algorithm
-
-void Thread::set_cpu_frequency(Hertz f) { // P2-tool: sets frequency for this task
+void Thread::set_cpu_frequency(Hertz f) {
     CPU::clock(f);
 }
 
-Hertz Thread::get_cpu_frequency() { // P2-tool: sets frequency for this task
+Hertz Thread::get_cpu_frequency() {
     return CPU::clock();
 }
 
 
-Hertz Thread::get_max_cpu_frequency() { // P2-tool: sets frequency for this task
+Hertz Thread::get_max_cpu_frequency() {
     return CPU::max_clock();
 }
 
 
-Hertz Thread::get_min_cpu_frequency() { // P2-tool: sets frequency for this task
+Hertz Thread::get_min_cpu_frequency() {
     return CPU::min_clock();
 }
 
+void Thread::update_blocks(Thread *running){
+
+    // BlockSize -> Quantidade de ciclos totais do bloco. Usada pela leader
+    // BlockTime -> Mesma coisa pro tempo
+    // ThreadSize -> Tamanho individual de uma thread em ciclos. setado pelo _statistics->cycle_count
+    // ThreadTime -> Mesma coisa pro tempo
 
 
+    // int current_time = Alarm::elapsed();
+    // running->threadTime = running->priority() - current_time;
+    // running->blockSize = running->threadSize;
+    // running->blockTime = running->threadTime;
+    // running->CPUfreq = ( running->blockTime > 0 ? running->blockSize / running->blockTime : 0xFFFFFFFFFFFFFFFF);
+    // running->leaderHead = running;
 
-// Changes CPU frequency used for this thread and neighbours
-// void insertion() {
+    // Thread * previous_t = running;
+    // for (Queue::Iterator i = _scheduler.begin(); i != _scheduler.end(); ++i){
+    //     Thread* current_t = i->object();
+    //     Criterion c = current_t->criterion();
 
-//     // Please don't let it divide by 0 on avaiable time. (to-do)
-//     leaderHead = this;
+    //     if (c != IDLE && c != MAIN ){
+    //         current_t->blockSize = current_t->threadSize;
+    //         current_t->blockTime = current_t->priority() - previous_t->leaderHead->priority();
+    //         current_t->CPUfreq = (current_t->blockTime > 0 ? current_t->blockSize*1000000 / current_t->blockTime : 0xFFFFFFFFFFFFFFFF);
+    //         current_t->leaderHead = current_t;
 
-//     Thread* MT = _link._next->_object; // Task whose time will be shrunk
+    //         if(current_t->CPUfreq >= previous_t->leaderHead->CPUfreq){
+    //             previous_t->leaderHead->blockSize += current_t->blockSize;
+    //             previous_t->leaderHead->blockTime += current_t->blockTime;
+    //             previous_t->leaderHead->CPUfreq = ( previous_t->leaderHead->blockTime > 0 ? previous_t->leaderHead->blockSize*1000000 / previous_t->leaderHead->blockTime : 0xFFFFFFFFFFFFFFFF);
 
-//     if (_link._prev == nullptr) {
-//         totalTime = deadline;
-//         CPUfreq = totalSize/totalTime;
-//         MT = _link._next->object;
-//         if (MT != nullptr) {
-//             MT->totalTime -= totalTime;
-//             MT->CPUfreq = MT->totalSize/MT->totalTime;
-//             if (MT != MT->leaderHead) {
-//                 MT->leaderHead->totalTime -= totalTime;
-//                 MT->leaderHead->CPUfreq = MT->leaderHead->totalSize/MT->leaderHead->totalTime;
-//             }
-//             MT->dissolve();
-//         } else {
-//             return;
-//         }
-//     } else {
-//         totalTime = deadline - _link._prev->deadline;
-//         CPUfreq = totalSize/totalTime;
-//         if (MT != nullptr) {
-//             MT->totalTime -= totalTime;
-//             MT->CPUfreq = MT->totalSize/MT->totalTime;
-//             if (MT != _link._prev->leaderHead and MT != MT->leaderHead) {
-//                 MT->leaderHead->totalTime -= totalTime;
-//                 MT->leaderHead->CPUfreq = MT->leaderHead->totalSize/MT->leaderHead->totalTime;
-//             }
-//         }
-//         if (MT == nullptr or (_prev != nullptr && _link._prev->leaderHead != MT->leaderHead && _link._prev->leaderHead != MT)) { // Task inserted between two Blocks
-//             conquer();
-//         } else { // Task inserted between a Block
-//             _link._prev->leaderHead->dissolve();
-//         }
-//     }
-// }
+    //             current_t->leaderHead = previous_t->leaderHead;
+    //         }
 
-// Function that fuses two Blocks, called when LeftBlock (oldLeader)'s frequency is lower than RightBlock (this)'s frequency
-// if we have:
-// (A, B, C, D, E, F) being tasks
-// ABC' being a block of tasks A B C with C' as the leader
-// This function does: ABC' DEF' -> ABCDEF'
-// Called by newLeader (oldLeader's Right Block)
-// void coup(Thread *oldLeader) {
-//     Thread *head = oldLeader->leaderHead;
-//     totalSize += oldLeader->totalSize;
-//     totalTime += oldLeader->totalTime;
-//     CPUfreq = totalSize / totalTime;
-//     oldLeader->totalSize = oldLeader->instructions;
-//     if (oldLeader->_link._prev == nullptr) {
-//         oldLeader->totaltime = oldLeader->deadline;
-//     } else {
-//         oldLeader->totaltime = oldLeader->deadline - oldLeader->_prev->_object->deadline;
-//     }
-//     oldLeader->CPUfreq = oldLeader->totalSize / oldLeader->totalTime;
+    //         previous_t = current_t;
+    //     }
 
-//     leaderHead = head;
+    // }
+};
 
-//     while (head != this) {
-//         head->leaderHead = this;
-//         head = head->_next->_object;
-//     }
-// }
 
-// called on I'
-// will do (ABC' D' EF' GHI') -> (ABC' D' EFGHI') -> (ABC' DEFGHI')
-// void conquer() {
-//     Thread *leftKingdom = leaderHead->_prev->_object; // left block that might be consumed by current block
-
-//     while (leftKingdom != nullptr and leftKingdom->CPUfreq < CPUfreq) {
-//         coup(leftKingdom);
-//         leftKingdom = leaderHead->_prev;
-//     }
-
-//     if (_link._next != nullptr and _link._next->_object->leaderHead->CPUfreq > CPUfreq) {
-//         _link._next->_object->leaderHead->coup(this);
-//         // newEmperor->leaderHead->_right->_object->conquer(this); Too ineficient for too little gain??
-//     }
-// }
-
-// ABCHDEFG' -> A' B' C' H' D' E' F' G' -> conquer(G') ^ conquer(F') ^ ...
-// Called on Leader G'
-// void dissolve() {
-//     Thread *head = leaderHead;
-
-//     // resseting leader's stats
-//     totalSize = instructions;
-//     totaltime = deadline - _link._prev->deadline;
-//     CPUfreq = totalSize / totalTime;
-
-//     // breaking off each part of Block
-//     Thread *temp = this;
-//     while (temp != head) {
-//         temp->leaderHead = temp;
-//         temp = temp->_link._prev->_object;
-//     }
-//     head->leaderHead = head;
-
-//     // Giving the chance for each new Block to conquer others
-//     temp = this;
-//     while (temp != nullptr and temp != head) {
-//         temp->conquer();
-//         temp = temp->leaderHead->_link._prev->_object;
-//     }
-// }
 
 void Thread::constructor_prologue(unsigned int stack_size)
 {
@@ -548,12 +469,22 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
             next->criterion().handle(Criterion::AWARD | Criterion::ENTER);
         }
 
+        // prev->threadSize = prev->threadSize/2 + prev->_statistics->cycle_count/2;
+        // prev->cycle_count = 0;
+        // prev->CPUfreq = prev->threadSize/prev->threadTime;
+
+
+
+        prev->update_blocks(next);
+
         if (prev->_state == RUNNING)
             prev->_state = READY;
 
 
         next->_state = RUNNING;
 
+
+        set_cpu_frequency(next->CPUfreq);
 
         db<Thread>(TRC) << "Thread::dispatch(prev=" << prev << ",next=" << next << ")" << endl;
         if (Traits<Thread>::debugged && Traits<Debug>::info)

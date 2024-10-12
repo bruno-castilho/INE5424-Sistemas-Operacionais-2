@@ -72,6 +72,9 @@ void RT_Common::handle(Event event)
         _statistics.job_finish = elapsed();
         _statistics.jobs_finished++;
         //        _statistics.job_utilization += elapsed() - _statistics.thread_last_dispatch;
+
+        _statistics.cycle_count = PMU::read(1);
+        PMU::reset(1);
     }
     if (event & COLLECT)
     {

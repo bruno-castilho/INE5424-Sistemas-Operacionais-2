@@ -71,11 +71,13 @@ public:
         unsigned int stack_size;
     };
 
-
-    // int totalSize;
-    // int totalTime;
-    // int CPUfreq;
-    // Thread *leaderHead = nullptr;
+    // unsigned long cycle_count;
+    unsigned long threadSize;
+    unsigned long threadTime;
+    unsigned long blockSize;
+    unsigned long blockTime;
+    unsigned long CPUfreq;
+    Thread *leaderHead = nullptr;
 
 
 public:
@@ -91,6 +93,7 @@ public:
 
     const volatile Criterion &priority() const { return _link.rank(); }
     void priority(Criterion p);
+    void update_blocks(Thread *running);
 
     Task *task() const { return _task; }
 

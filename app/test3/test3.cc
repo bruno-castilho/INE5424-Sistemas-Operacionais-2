@@ -69,7 +69,7 @@ inline void exec(char c, Milisecond time = 0)
     for(unsigned long i = 0; i < time; i++)
         for(unsigned long j = 0; j < base_loop_count; j++) {
             p = p + Point<long, 2>::trilaterate(p1, 123123, p2, 123123, p3, 123123);
-    }
+        }
 
     elapsed = chrono.read() / 1000;
     cout << "\n" << elapsed << " " << c << "-2"

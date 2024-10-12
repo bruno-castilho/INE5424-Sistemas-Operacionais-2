@@ -97,12 +97,6 @@ public:
 
         db<Thread>(TRC) << "Thread::wait_next(this=" << t << ",times=" << t->_alarm.times() << ")" << endl;
 
-        // cycle_count += PMU::read(1); // P2-tool: cycle_count saves how many cycles this specific task has executed, when it ends, cycle count can be passed to variable size
-        // PMU::reset(1); // P2-tool: Reset counter
-
-        // totalSize = totalSize/2 + cycle_count/2 // P2-tool: gets average of size from previous execution
-        // CPUfreq = totalSize/totalTime; // to-do: totalSize must be in seconds for the value to be accurate. Alternatively, it can be in microseconds, and we multiply size by 1.000.000
-
         t->criterion().handle(Criterion::JOB_FINISH);
 
         if(t->_alarm.times())
