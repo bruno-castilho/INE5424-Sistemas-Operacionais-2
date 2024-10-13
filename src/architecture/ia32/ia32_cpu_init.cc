@@ -21,8 +21,11 @@ void CPU::init()
         db<Init, MMU>(WRN) << "MMU is disabled!" << endl;
 
     // Initialize the PMU	
-    if(Traits<PMU>::enabled)
+    if(Traits<PMU>::enabled){
         PMU::init();
+        PMU::config(3, UNHALTED_CYCLES);
+    }
+
 }
 
 __END_SYS

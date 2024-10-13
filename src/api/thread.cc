@@ -15,31 +15,12 @@ Scheduler_Timer *Thread::_timer;
 Scheduler<Thread> Thread::_scheduler;
 
 
-void Thread::set_cpu_frequency(Hertz f) { 
-    CPU::clock(f);
-}
-
-Hertz Thread::get_cpu_frequency() { 
-    return CPU::clock();
-}
-
-
-Hertz Thread::get_max_cpu_frequency() { 
-    return CPU::max_clock();
-}
-
-
-Hertz Thread::get_min_cpu_frequency() { 
-    return CPU::min_clock();
-}
-
-
 void Thread::update_blocks(Thread *running){
 
     int current_time = Alarm::elapsed();
-    running->instructions = running->statistics().instructions;
+    running->block_size = running->statistics().cycle_count;
     running->avaliable_time = running->priority() - current_time;
-    running->frequency = ( running->avaliable_time > 0 ? running->instructions / running->avaliable_time : 0xFFFFFFFFFFFFFFFF);
+    running->frequency = ( running->avaliable_time > 0 ? ( running->block_size / running->avaliable_time ) * 1000000ULL : 0xFFFFFFFF) ;
     running->leaderHead = running;
 
     Thread * previous_t = running;
@@ -48,15 +29,15 @@ void Thread::update_blocks(Thread *running){
         Criterion c = current_t->criterion();
 
         if (c != IDLE && c != MAIN ){
-            current_t->instructions = current_t->statistics().instructions;
+            current_t->block_size = current_t->statistics().cycle_count;
             current_t->avaliable_time = current_t->priority() - current_time - previous_t->leaderHead->avaliable_time;
-            current_t->frequency = ( current_t->avaliable_time > 0 ? current_t->instructions / current_t->avaliable_time : 0xFFFFFFFFFFFFFFFF);
+            current_t->frequency = ( current_t->avaliable_time > 0 ? ( running->block_size / running->avaliable_time ) * 1000000ULL : 0xFFFFFFFF);
             current_t->leaderHead = current_t;
 
             if(current_t->frequency >= previous_t->leaderHead->frequency){
-                previous_t->leaderHead->instructions += current_t->instructions;
+                previous_t->leaderHead->block_size += current_t->block_size;
                 previous_t->leaderHead->avaliable_time += current_t->avaliable_time;
-                previous_t->leaderHead->frequency = ( previous_t->leaderHead->avaliable_time > 0 ? previous_t->leaderHead->instructions / previous_t->leaderHead->avaliable_time : 0xFFFFFFFFFFFFFFFF);
+                previous_t->leaderHead->frequency = ( previous_t->leaderHead->avaliable_time > 0 ? previous_t->leaderHead->block_size / previous_t->leaderHead->avaliable_time : 0xFFFFFFFFFFFFFFFF);
 
                 current_t->leaderHead = previous_t->leaderHead;
             }
@@ -470,6 +451,8 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
 
 
         Thread::update_blocks(next);
+        CPU::clock(next->frequency);
+
         db<Thread>(TRC) << "Thread::dispatch(prev=" << prev << ",next=" << next << ")" << endl;
         if (Traits<Thread>::debugged && Traits<Debug>::info)
         {
@@ -484,8 +467,8 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
         // passing the volatile to switch_constext forces it to push prev onto the stack,
         // disrupting the context (it doesn't make a difference for Intel, which already saves
         // parameters on the stack anyway).
-        PMU::config(3, PMU::UNHALTED_CORE_CYCLES);
-        PMU::config(4, PMU::INSTRUCTIONS_RETIRED);
+        PMU::reset(3);
+        PMU::start(3);
         CPU::switch_context(const_cast<Context **>(&prev->_context), next->_context);
     }
 }

@@ -99,7 +99,6 @@ public:
         unsigned int jobs_released; // number of jobs of a thread that were released so far (i.e. the number of times _alarm->v() was called by the Alarm::handler())
         unsigned int jobs_finished; // number of jobs of a thread that finished execution so far (i.e. the number of times alarm->p() was called at wait_next())
         unsigned long long cycle_count;
-        unsigned long long instructions;
     };
 
     struct Real_Statistics
@@ -120,7 +119,6 @@ public:
         unsigned int jobs_released; // number of jobs of a thread that were released so far (i.e. the number of times _alarm->v() was called by the Alarm::handler())
         unsigned int jobs_finished; // number of jobs of a thread that finished execution so far (i.e. the number of times alarm->p() was called at wait_next())
         unsigned long long cycle_count;
-        unsigned long long instructions;
     };
 
     typedef IF<Traits<System>::monitored, Real_Statistics, Dummy_Statistics>::Result Statistics;
@@ -291,11 +289,9 @@ class MyScheduler : public EDF
 public:
     MyScheduler(int p = APERIODIC) : EDF(p) {
         _statistics.cycle_count = 0xFFFFFFFFFFFFFFFF;
-        _statistics.instructions = 0xFFFFFFFFFFFFFFFF;
     }
     MyScheduler(Microsecond p, Microsecond d = SAME, Microsecond c = UNKNOWN) : EDF(p, d, c){
-        _statistics.cycle_count = 1000;
-        _statistics.instructions = 1000;
+        _statistics.cycle_count = 0xFFFFFFFFFFFFFFFF;
     };
 
 };

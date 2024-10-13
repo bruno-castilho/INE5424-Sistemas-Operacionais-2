@@ -72,8 +72,8 @@ public:
         unsigned int stack_size;
     };
 
-    unsigned long long frequency;
-    unsigned long long instructions;
+    Hertz frequency;
+    unsigned long long block_size;
     int avaliable_time;
     Thread *leaderHead;
 
@@ -101,10 +101,6 @@ public:
     static Thread *volatile self() { return running(); }
     static void yield();
     static void exit(int status = 0);
-    static void set_cpu_frequency(Hertz f);
-    static Hertz get_cpu_frequency();
-    static Hertz get_max_cpu_frequency();
-    static Hertz get_min_cpu_frequency();
 
 protected:
     void constructor_prologue(unsigned int stack_size);

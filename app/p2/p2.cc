@@ -6,9 +6,6 @@
 
 using namespace EPOS;
 
-
-const Hertz frequency = 1124908640;
-
 const unsigned int iterations = 100;
 const Milisecond period_a = 100;
 const Milisecond period_b = 80;
@@ -53,17 +50,17 @@ inline void exec(char c, Milisecond time = 0)
 {
     Milisecond elapsed = chrono.read() / 1000;
 
-    cout <<  "\nFREQUENCY={maxf="<<  Periodic_Thread::get_max_cpu_frequency() 
-         << ",minf=" <<  Periodic_Thread::get_min_cpu_frequency() 
-         << ",curf=" << Periodic_Thread::get_cpu_frequency() 
+    cout <<  "\nFREQUENCY={maxf="<<  CPU::clock() 
+         << ",minf=" <<  CPU::min_clock() 
+         << ",curf=" << CPU::max_clock() 
          << "}]"
          << endl;
 
 
     cout << "\n" << elapsed << " " << c << "-1"
-         << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",a=" << thread_a->leaderHead->avaliable_time << ",i=" << thread_a->leaderHead->instructions << ",f="  << thread_a->leaderHead->frequency << "}"
-         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",a=" << thread_b->leaderHead->avaliable_time << ",i=" << thread_b->leaderHead->instructions << ",f="  << thread_b->leaderHead->frequency << "}"
-         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",a=" << thread_c->leaderHead->avaliable_time << ",i=" << thread_c->leaderHead->instructions << ",f="  << thread_c->leaderHead->frequency << "}]";
+         << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",a=" << thread_a->leaderHead->avaliable_time << ",b=" << thread_a->leaderHead->block_size << ",f="  << thread_a->leaderHead->frequency << "}"
+         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",a=" << thread_b->leaderHead->avaliable_time << ",b=" << thread_b->leaderHead->block_size << ",f="  << thread_b->leaderHead->frequency << "}"
+         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",a=" << thread_c->leaderHead->avaliable_time << ",b=" << thread_c->leaderHead->block_size << ",f="  << thread_c->leaderHead->frequency << "}]";
 
 
     for(unsigned long i = 0; i < time; i++)
@@ -73,9 +70,9 @@ inline void exec(char c, Milisecond time = 0)
 
     elapsed = chrono.read() / 1000;
     cout << "\n" << elapsed << " " << c << "-2"
-            << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",a=" << thread_a->leaderHead->avaliable_time << ",i=" << thread_a->leaderHead->instructions << ",f="  << thread_a->leaderHead->frequency << "}"
-            <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",a=" << thread_b->leaderHead->avaliable_time << ",i=" << thread_b->leaderHead->instructions << ",f="  << thread_b->leaderHead->frequency << "}"
-            <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",a=" << thread_c->leaderHead->avaliable_time << ",i=" << thread_c->leaderHead->instructions << ",f="  << thread_c->leaderHead->frequency << "}]";
+         << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",a=" << thread_a->leaderHead->avaliable_time << ",b=" << thread_a->leaderHead->block_size << ",f="  << thread_a->leaderHead->frequency << "}"
+         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",a=" << thread_b->leaderHead->avaliable_time << ",b=" << thread_b->leaderHead->block_size << ",f="  << thread_b->leaderHead->frequency << "}"
+         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",a=" << thread_c->leaderHead->avaliable_time << ",b=" << thread_c->leaderHead->block_size << ",f="  << thread_c->leaderHead->frequency << "}]";
     
 }
 
@@ -94,15 +91,13 @@ int main()
     cout << base_loop_count << " iterations per ms!" << endl;
 
 
-    cout << "\nSet CPU frequency to " << frequency << " Hz." << endl;
-    Periodic_Thread::set_cpu_frequency(frequency);
     cout << "\nThreads will now be created and I'll wait for them to finish..." << endl;
 
 
     // p,d,c,act,t
-    thread_a = new Periodic_Thread(RTConf(period_a * 1000, period_a * 1000, wcet_a * 1000, 0, iterations), &func_a);
-    thread_b = new Periodic_Thread(RTConf(period_b * 1000, period_b * 1000, wcet_b * 1000, 0, iterations), &func_b);
-    thread_c = new Periodic_Thread(RTConf(period_c * 1000, period_c * 1000, wcet_c * 1000, 0, iterations), &func_c);
+    thread_a = new Periodic_Thread(RTConf(period_a * 1000, 0, wcet_a * 1000, 0, iterations), &func_a);
+    thread_b = new Periodic_Thread(RTConf(period_b * 1000, 0, wcet_b * 1000, 0, iterations), &func_b);
+    thread_c = new Periodic_Thread(RTConf(period_c * 1000, 0, wcet_c * 1000, 0, iterations), &func_c);
 
     exec('M');
 
