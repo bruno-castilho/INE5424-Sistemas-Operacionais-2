@@ -12,8 +12,52 @@ extern OStream kout;
 volatile unsigned int Thread::_thread_count;
 
 Scheduler_Timer *Thread::_timer;
+
 Scheduler<Thread> Thread::_scheduler;
 
+void Thread::increment_thread__count(){
+    _thread_count++;
+    switch(_criterion) {
+    case HIGH:
+        _high_thread_count++;
+        break;
+    case NORMAL:
+        _normal_threads++;
+        break;
+    case LOW:
+        _low_threads++;
+        break;
+    case MAIN:
+        break;
+    case IDLE:
+        break;
+    }
+
+}
+
+void Thread::decrement_thread__count(){
+    _thread_count--;
+    switch(_criterion) {
+    case HIGH:
+        _high_thread_count--;
+        break;
+    case NORMAL:
+        _normal_threads--;
+        break;
+    case LOW:
+        _low_threads--;
+        break;
+    case MAIN:
+        break;
+    case IDLE:
+        break;
+    }
+
+}
+
+int Thread::calculate_cpu_frequency(){
+    return (_thread_count + _high_thread_count + _normal_threads + _low_threads)/4;
+}
 
 void Thread::update_blocks(Thread *running){
 
@@ -52,6 +96,7 @@ void Thread::constructor_prologue(unsigned int stack_size)
 {
     lock();
     _thread_count++;
+
 
     _scheduler.insert(this);
     _stack = new (SYSTEM) char[stack_size];
@@ -104,18 +149,18 @@ Thread::~Thread()
         break;
     case READY:
         _scheduler.remove(this);
-        _thread_count--;
+        decrement_thread__count();
         break;
     case SUSPENDED:
         _scheduler.resume(this);
         _scheduler.remove(this);
-        _thread_count--;
+        decrement_thread__count();
         break;
     case WAITING:
         _waiting->remove(this);
         _scheduler.resume(this);
         _scheduler.remove(this);
-        _thread_count--;
+        decrement_thread__count();
         break;
     case FINISHING: // Already called exit()
         break;
@@ -262,7 +307,7 @@ void Thread::exit(int status)
     *reinterpret_cast<int *>(prev->_stack) = status;
     prev->criterion().handle(Criterion::FINISH);
 
-    _thread_count--;
+    prev->decrement_thread__count();
 
     if (prev->_joining)
     {
@@ -450,8 +495,10 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
         next->_state = RUNNING;
 
 
+
         Thread::update_blocks(next);
         CPU::clock(next->frequency);
+
 
         db<Thread>(TRC) << "Thread::dispatch(prev=" << prev << ",next=" << next << ")" << endl;
         if (Traits<Thread>::debugged && Traits<Debug>::info)

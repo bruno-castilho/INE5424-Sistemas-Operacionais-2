@@ -77,6 +77,7 @@ public:
     int avaliable_time;
     Thread *leaderHead;
 
+
 public:
     template <typename... Tn>
     Thread(int (*entry)(Tn...), Tn... an);
@@ -108,6 +109,8 @@ protected:
     void increment_thread__count();
     void decrement_thread__count();
 
+
+
     Queue::Element *link() { return &_link; }
 
     static Thread *volatile running() { return _scheduler.chosen(); }
@@ -126,6 +129,7 @@ protected:
     static void reschedule();
     static void time_slicer(IC::Interrupt_Id interrupt);
 
+
     static void dispatch(Thread *prev, Thread *next, bool charge = true);
 
     static void for_all_threads(Criterion::Event event)
@@ -138,6 +142,7 @@ protected:
 
 
     static void update_blocks(Thread *prev);
+
 
     static int idle();
 
@@ -156,8 +161,10 @@ protected:
     Queue::Element _link;
     Criterion _criterion;
 
+
     static volatile unsigned int _thread_count;
     static Scheduler_Timer *_timer;
+
     static Scheduler<Thread> _scheduler;
 };
 
@@ -227,9 +234,11 @@ inline Thread::Thread(int (*entry)(Tn...), Tn... an)
 {
     _criterion = NORMAL;
 
+
     constructor_prologue(STACK_SIZE);
 
     _context = CPU::init_stack(0, _stack + STACK_SIZE, &__exit, entry, an...);
+
     constructor_epilogue(entry, STACK_SIZE);
 }
 
@@ -238,6 +247,8 @@ inline Thread::Thread(Configuration conf, int (*entry)(Tn...), Tn... an)
     : _task(Task::self()), _state(conf.state), _waiting(0), _joining(0), _link(this, conf.criterion)
 {
     _criterion = conf.criterion;
+
+
 
     constructor_prologue(conf.stack_size);
     _context = CPU::init_stack(0, _stack + conf.stack_size, &__exit, entry, an...);
