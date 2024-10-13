@@ -24,7 +24,7 @@ class SREC;
 class Vectors;
 template<typename> class Scheduler;
 
-typedef unsigned long Hertz;
+typedef unsigned long long Hertz;
 typedef unsigned long PPM; // parts per million
 typedef unsigned long long PPB; // parts per billion
 

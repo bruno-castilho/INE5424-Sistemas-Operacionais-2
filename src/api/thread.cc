@@ -20,7 +20,7 @@ void Thread::update_blocks(Thread *running){
     int current_time = Alarm::elapsed();
     running->block_size = running->statistics().cycle_count;
     running->available_time = running->priority() - current_time;
-    running->frequency = ( running->available_time > 0 ? ( running->block_size / running->available_time ) * 1000000ULL : 0xFFFFFFFF) ;
+    running->frequency = ( running->available_time > 0 ? ( running->block_size  * 1000000ULL / running->available_time )  : 0xFFFFFFFF) ;
     running->leaderHead = running;
 
     Thread * previous_t = running;
@@ -31,13 +31,13 @@ void Thread::update_blocks(Thread *running){
         if (c != IDLE && c != MAIN ){
             current_t->block_size = current_t->statistics().cycle_count;
             current_t->available_time = current_t->priority() - current_time - previous_t->leaderHead->available_time;
-            current_t->frequency = ( current_t->available_time > 0 ? ( running->block_size / running->available_time ) * 1000000ULL : 0xFFFFFFFF);
+            current_t->frequency = ( current_t->available_time > 0 ? ( running->block_size * 1000000ULL  / running->available_time )   : 0xFFFFFFFF);
             current_t->leaderHead = current_t;
 
             if(current_t->frequency >= previous_t->leaderHead->frequency){
                 previous_t->leaderHead->block_size += current_t->block_size;
                 previous_t->leaderHead->available_time = previous_t->leaderHead->available_time + current_t->available_time;
-                previous_t->leaderHead->frequency = ( previous_t->leaderHead->available_time > 0 ? previous_t->leaderHead->block_size / previous_t->leaderHead->available_time : 0xFFFFFFFFFFFFFFFF);
+                previous_t->leaderHead->frequency = ( previous_t->leaderHead->available_time > 0 ? (previous_t->leaderHead->block_size * 1000000ULL  / previous_t->leaderHead->available_time)  : 0xFFFFFFFF);
 
                 current_t->leaderHead = previous_t->leaderHead;
             }
@@ -467,8 +467,8 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
         // passing the volatile to switch_constext forces it to push prev onto the stack,
         // disrupting the context (it doesn't make a difference for Intel, which already saves
         // parameters on the stack anyway).
-        PMU::reset(3);
-        PMU::start(3);
+        PMU::reset(1);
+        PMU::start(1);
         CPU::switch_context(const_cast<Context **>(&prev->_context), next->_context);
     }
 }

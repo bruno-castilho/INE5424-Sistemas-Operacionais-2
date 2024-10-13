@@ -351,22 +351,22 @@ public:
     static void clock(Hertz frequency) {
         Reg64 clock = frequency;
         unsigned int dc;
-        if(clock <= (_cpu_clock * 1875 / 10000)) {
+        if(clock <= (_cpu_clock * 1875ULL / 10000ULL)) {
             dc = 0b10011;   // minimum duty cycle of 12.5 %
-            _cpu_current_clock = _cpu_clock * 1875 / 10000;
-        } else if(clock >= (_cpu_clock * 9375 / 10000)) {
+            _cpu_current_clock = _cpu_clock * 1875ULL / 10000ULL;
+        } else if(clock >= (_cpu_clock * 9375ULL / 10000ULL)) {
             dc = 0b01001;   // disable duty cycling and operate at full speed
             _cpu_current_clock = _cpu_clock;
         } else {
-            dc = 0b10001 | ((clock * 10000 / _cpu_clock + 625) / 625); // dividing by 625 instead of 1250 eliminates the shift left
-            _cpu_current_clock = _cpu_clock * ((clock * 10000 / _cpu_clock + 625) / 625) * 625 / 10000;
+            dc = 0b10001 | ((clock * 10000ULL / _cpu_clock + 625ULL) / 625ULL); // dividing by 625 instead of 1250 eliminates the shift left
+            _cpu_current_clock = _cpu_clock * ((clock * 10000ULL / _cpu_clock + 625ULL) / 625ULL) * 625ULL / 10000ULL;
             // The ((clock * 10000 / _cpu_clock + 625) / 625) returns the factor, the step is 625/10000
             // thus, max_clock * factor * step = final clock
         }
         wrmsr(CLOCK_MODULATION, dc);
     }
     static Hertz max_clock() { return _cpu_clock; }
-    static Hertz min_clock() { return _cpu_clock * 1250 / 10000;}
+    static Hertz min_clock() { return _cpu_clock * 1250ULL / 10000ULL;}
 
     static Hertz bus_clock() { return _bus_clock; }
 

@@ -288,10 +288,10 @@ class MyScheduler : public EDF
 {
 public:
     MyScheduler(int p = APERIODIC) : EDF(p) {
-        _statistics.cycle_count = 0xFFFFFFFFFFFFFFFF;
+        _statistics.cycle_count = 0xFFFFFFFF;
     }
     MyScheduler(Microsecond p, Microsecond d = SAME, Microsecond c = UNKNOWN) : EDF(p, d, c){
-        _statistics.cycle_count = 0xFFFFFFFFFFFFFFFF;
+        _statistics.cycle_count = 0xFFFFFFFF;
     };
 
 };
