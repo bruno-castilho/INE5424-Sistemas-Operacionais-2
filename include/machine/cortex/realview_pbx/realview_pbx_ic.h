@@ -32,7 +32,8 @@ public:
         INT_NIC0_RX     = EXCS + GIC::IRQ_ETHERNET0,
         INT_NIC0_TX     = EXCS + GIC::IRQ_ETHERNET0,
         INT_NIC0_ERR    = EXCS + GIC::IRQ_ETHERNET0,
-        INT_USB0        = EXCS + GIC::IRQ_USB0
+        INT_USB0        = EXCS + GIC::IRQ_USB0,
+        INT_RESCHEDULER = EXCS + GIC::IRQ_SOFTWARE0
     };
 
 public:

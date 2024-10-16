@@ -356,7 +356,12 @@ public:
         // subject to memory remappings. We also cannot be sure about
         // global constructors here
         remap(addr);
-        disable();
+        if(Traits<System>::multicore) {
+            clear();
+            enable();
+            connect();
+        } else
+            disable();
     }
 
     static int eoi(unsigned int i) { // End of interrupt
@@ -460,13 +465,13 @@ private:
 };
 
 // IC uses i8259A on single-processor machines and the APIC timer on MPs
-class IC: private IC_Common, private i8259A
+class IC: private IC_Common, private IF<Traits<System>::multicore, APIC, i8259A>::Result
 {
     friend class Machine;
     friend class Thread;
 
 private:
-    typedef i8259A Engine;
+    typedef IF<Traits<System>::multicore, APIC, i8259A>::Result Engine;
 
     typedef CPU::Reg Reg;
     typedef CPU::Log_Addr Log_Addr;
@@ -480,6 +485,7 @@ public:
         INT_SYS_TIMER   = Engine::INT_TIMER,
         INT_KEYBOARD    = Engine::INT_KEYBOARD,
         INT_LAST_HARD   = Engine::INT_LAST_HARD,
+        INT_RESCHEDULER = Engine::INT_IPI,
         INT_PMU,
         LAST_INT
     };
@@ -543,6 +549,9 @@ private:
 private:
     static Interrupt_Handler _int_vector[INTS];
 };
+
+// Core id in IA32 is handled by the APIC
+inline volatile unsigned int CPU::id() { return multicore ? APIC::id() : 0; }
 
 __END_SYS
 

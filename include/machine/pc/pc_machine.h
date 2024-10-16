@@ -20,6 +20,8 @@ class Machine: private Machine_Common
     friend class Init_Begin;
 
 private:
+    static const bool multicore = Traits<System>::multicore;
+
     typedef CPU::Reg32 Reg32;
     typedef CPU::Log_Addr Log_Addr;
 

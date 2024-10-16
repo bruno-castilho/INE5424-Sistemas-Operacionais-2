@@ -31,13 +31,16 @@ public:
     static const UUID & uuid() { return System::info()->bm.uuid; }
 
 private:
-    static void pre_init() {}
+    static void pre_init();
     static void init() {}
 
 private:
     static GIC_CPU * gic_cpu() { return reinterpret_cast<GIC_CPU *>(Memory_Map::GIC_CPU_BASE); }
     static GIC_Distributor * gic_distributor() { return reinterpret_cast<GIC_Distributor *>(Memory_Map::GIC_DIST_BASE); }
     static SCU * scu() { return reinterpret_cast<SCU *>(Memory_Map::SCU_BASE); }
+
+private:
+    static volatile unsigned int _cores;
 };
 
 typedef Realview_PBX Machine_Model;

@@ -10,16 +10,15 @@ template<> struct Traits<Build>: public Traits_Tokens
 {
     // Basic configuration
     static const unsigned int SMOD = LIBRARY;
-    static const unsigned int ARCHITECTURE = RV64;
-    static const unsigned int MACHINE = RISCV;
-    static const unsigned int MODEL = SiFive_U;
+    static const unsigned int ARCHITECTURE = ARMv8;
+    static const unsigned int MACHINE = Cortex;
+    static const unsigned int MODEL = Raspberry_Pi3;
     static const unsigned int CPUS = 1;
     static const unsigned int NETWORKING = STANDALONE;
-    static const unsigned int EXPECTED_SIMULATION_TIME = 60; // s (0 => not simulated)
+    static const unsigned int EXPECTED_SIMULATION_TIME = 60;
 
     // Default flags
     static const bool enabled = true;
-    static const bool monitored = true;
     static const bool debugged = true;
     static const bool hysterically_debugged = false;
 };
@@ -99,7 +98,8 @@ template<> struct Traits<Application>: public Traits<Build>
 
 template<> struct Traits<System>: public Traits<Build>
 {
-    static const bool multithread = (Traits<Application>::MAX_THREADS > 1);
+    static const bool multithread = (Traits<Application>::MAX_THREADS > 1) || (CPUS > 1);
+    static const bool multicore = multithread && (CPUS > 1);
     static const bool multiheap = true;
 
     static const unsigned long LIFE_SPAN = 1 * YEAR; // s
@@ -108,18 +108,18 @@ template<> struct Traits<System>: public Traits<Build>
     static const bool reboot = true;
 
     static const unsigned int STACK_SIZE = Traits<Machine>::STACK_SIZE;
-    static const unsigned int HEAP_SIZE = (Traits<Application>::MAX_THREADS + 1) * Traits<Application>::STACK_SIZE;
+    static const unsigned int HEAP_SIZE = (Traits<Application>::MAX_THREADS + Traits<Build>::CPUS) * Traits<Application>::STACK_SIZE;
 };
 
 template<> struct Traits<Thread>: public Traits<Build>
 {
     static const bool enabled = Traits<System>::multithread;
+    static const bool smp = Traits<System>::multicore;
     static const bool trace_idle = hysterically_debugged;
     static const bool simulate_capacity = false;
-    static const int priority_inversion_protocol = NONE;
 
     typedef RR Criterion;
-    static const unsigned int QUANTUM = 100000; // us
+    static const unsigned int QUANTUM = 10000; // us
 };
 
 template<> struct Traits<Scheduler<Thread>>: public Traits<Build>

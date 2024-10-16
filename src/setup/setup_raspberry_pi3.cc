@@ -53,30 +53,51 @@ private:
 
 private:
     System_Info * si;
+
+    static volatile bool paging_ready;
 };
+
+volatile bool Setup::paging_ready = false;
 
 Setup::Setup()
 {
     si = reinterpret_cast<System_Info *>(&__boot_time_system_info);
+    if(si->bm.n_cpus > Traits<Machine>::CPUS)
+        si->bm.n_cpus = Traits<Machine>::CPUS;
 
-    // SETUP doesn't handle global constructors, so we need to manually initialize any object with a non-empty default constructor
-    new (&kout) OStream;
-    new (&kerr) OStream;
-    Display::init();
-    kout << endl;
-    kerr << endl;
+    if(CPU::id() == CPU::BSP) {
 
-    db<Setup>(TRC) << "Setup(si=" << reinterpret_cast<void *>(si) << ",sp=" << CPU::sp() << ")" << endl;
-    db<Setup>(INF) << "Setup:si=" << *si << endl;
+        // SETUP doesn't handle global constructors, so we need to manually initialize any object with a non-empty default constructor
+        new (&kout) OStream;
+        new (&kerr) OStream;
+        Display::init();
+        kout << endl;
+        kerr << endl;
 
-    // Print basic facts about this EPOS instance
-    say_hi();
+        db<Setup>(TRC) << "Setup(si=" << reinterpret_cast<void *>(si) << ",sp=" << CPU::sp() << ")" << endl;
+        db<Setup>(INF) << "Setup:si=" << *si << endl;
 
-    // Configure a flat memory model for the single task in the system
-    setup_flat_paging();
+        // Print basic facts about this EPOS instance
+        say_hi();
 
-    // Enable paging
-    enable_paging();
+        // Configure a flat memory model for the single task in the system
+        setup_flat_paging();
+
+        // Enable paging
+        enable_paging();
+
+        // Signalizes other CPUs that paging is up
+        paging_ready = true;
+
+    } else { // additional CPUs (APs)
+
+        db<Setup>(TRC) << "Setup(si=" << reinterpret_cast<void *>(si) << ",sp=" << CPU::sp() << ")" << endl;
+
+        // Wait for the Boot CPU to setup page tables
+        while(!paging_ready);
+        enable_paging();
+
+    }
 
     // SETUP ends here, so let's transfer control to the next stage (INIT or APP)
     call_next();
@@ -287,9 +308,6 @@ void _reset()
 {
     CPU::int_disable(); // interrupts will be re-enabled at init_end
 
-    if(CPU::id() != 0) // We want secondary cores to be held here
-        CPU::halt();
-
     // QEMU get us here in SVC mode with interrupt disabled, but the real Raspberry Pi3 starts in hypervisor mode, so we must switch to SVC mode
     if(!Traits<Machine>::emulated) {
         CPU::Reg cpsr = CPU::psr();
@@ -304,21 +322,31 @@ void _reset()
     CPU::mode(CPU::MODE_SVC); // enter SVC mode (with interrupts disabled)
     CPU::sp(Memory_Map::BOOT_STACK + Traits<Machine>::STACK_SIZE * (CPU::id() + 1) - sizeof(long));
 
-    // After a reset, we copy the vector table to 0x0000 to get a cleaner memory map (it is originally at 0x8000)
-    // An alternative would be to set vbar address via mrc p15, 0, r1, c12, c0, 0
-    CPU::r0(reinterpret_cast<CPU::Reg>(&_entry)); // load r0 with the source pointer
-    CPU::r1(Memory_Map::VECTOR_TABLE); // load r1 with the destination pointer
+    BCM_Mailbox * mbox = reinterpret_cast<BCM_Mailbox *>(Memory_Map::MBOX_CTRL_BASE);
+    if(CPU::id() == CPU::BSP) {
+        // Wake up other CPUs
+        for(unsigned int i = 1; i < Traits<Build>::CPUS; i++)
+            mbox->start(i, Traits<Machine>::RESET);
 
-    // Copy the first 32 bytes
-    CPU::ldmia(); // load multiple registers from the memory pointed by r0 and auto-increment it accordingly
-    CPU::stmia(); // store multiple registers to the memory pointed by r1 and auto-increment it accordingly
+        // After a reset, we copy the vector table to 0x0000 to get a cleaner memory map (it is originally at 0x8000)
+        // An alternative would be to set vbar address via mrc p15, 0, r1, c12, c0, 0
+        CPU::r0(reinterpret_cast<CPU::Reg>(&_entry)); // load r0 with the source pointer
+        CPU::r1(Memory_Map::VECTOR_TABLE); // load r1 with the destination pointer
 
-    // Repeat to copy the subsequent 32 bytes
-    CPU::ldmia();
-    CPU::stmia();
+        // Copy the first 32 bytes
+        CPU::ldmia(); // load multiple registers from the memory pointed by r0 and auto-increment it accordingly
+        CPU::stmia(); // store multiple registers to the memory pointed by r1 and auto-increment it accordingly
 
-    // Clear the BSS (SETUP was linked to CRT0, but entry point didn't go through BSS clear)
-    Machine::clear_bss();
+        // Repeat to copy the subsequent 32 bytes
+        CPU::ldmia();
+        CPU::stmia();
+
+        // Clear the BSS (SETUP was linked to CRT0, but entry point didn't go through BSS clear)
+        Machine::clear_bss();
+    } else {
+        mbox->eoi(0);
+        mbox->enable();
+    }
 
     // Set VBAR to point to the relocated the vector table
     CPU::vbar(Memory_Map::VECTOR_TABLE);
@@ -511,15 +539,23 @@ void _vector_table()
 void _reset()
 {
     CPU::int_disable(); // interrupts will be re-enabled at init_end
+    if(CPU::id() == CPU::BSP) {
+        // 64 bits Multicore CPU start SPIN MMIO
+        enum {
+            CORE0_SPIN_SET          = 0xd8, // https://github.com/raspberrypi/tools/blob/master/armstubs/armstub8.S#L156
+            CORE_SPIN_OFFSET        = 0x08
+        };
 
-    if(CPU::id() != 0) // We want secondary cores to be held here
-        CPU::halt();
+        CPU::Reg64 * spin = reinterpret_cast<CPU::Reg64 *>(CORE0_SPIN_SET);
+        for(unsigned int i = 1; i < Traits<Build>::CPUS; i++)
+            spin[i] = Traits<Machine>::RESET;
 
-    // Relocated the vector table, which has 4 entries for each of the 4 scenarios, all 128 bytes aligned, plus an 8 bytes pointer, totaling 2056 bytes
-    CPU::Reg * src = reinterpret_cast<CPU::Reg *>(&_vector_table);
-    CPU::Reg * dst = reinterpret_cast<CPU::Reg *>(Memory_Map::VECTOR_TABLE);
-    for(int i = 0; i < (2056 / 8); i++)
-        dst[i] = src[i];
+        // Relocated the vector table, which has 4 entries for each of the 4 scenarios, all 128 bytes aligned, plus an 8 bytes pointer, totaling 2056 bytes
+        CPU::Reg * src = reinterpret_cast<CPU::Reg *>(&_vector_table);
+        CPU::Reg * dst = reinterpret_cast<CPU::Reg *>(Memory_Map::VECTOR_TABLE);
+        for(int i = 0; i < (2056 / 8); i++)
+            dst[i] = src[i];
+    }
 
     // Set EL1 VBAR to the relocated vector table
     CPU::vbar_el1(static_cast<CPU::Phy_Addr>(Memory_Map::VECTOR_TABLE));
@@ -535,8 +571,10 @@ void _reset()
     CPU::eret();
     CPU::sp(Memory_Map::BOOT_STACK + Traits<Machine>::STACK_SIZE * (CPU::id() + 1)); // set stack
 
-    // Clear the BSS (SETUP was linked to CRT0, but entry point didn't go through BSS clear)
-    Machine::clear_bss();
+    if(CPU::id() == CPU::BSP) {
+        // Clear the BSS (SETUP was linked to CRT0, but entry point didn't go through BSS clear)
+        Machine::clear_bss();
+    }
 
     _setup();
 }

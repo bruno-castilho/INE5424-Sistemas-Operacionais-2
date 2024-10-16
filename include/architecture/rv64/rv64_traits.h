@@ -14,6 +14,7 @@ template<> struct Traits<CPU>: public Traits<Build>
     static const unsigned int WORD_SIZE         = 64;
     static const unsigned long CLOCK            = (MODEL == SiFive_U) ? 1000000000L : 50000000;
     static const bool unaligned_memory_access   = false;
+    static const bool atomic_memory_operations  = (MODEL == SiFive_U);
 };
 
 template<> struct Traits<MMU>: public Traits<Build>

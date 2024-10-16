@@ -26,8 +26,6 @@ Alarm::Alarm(Microsecond time, Handler * handler, unsigned int times)
         unlock();
         (*handler)();
     }
-
-    Task::self()->enroll(this);
 }
 
 Alarm::~Alarm()
@@ -37,8 +35,6 @@ Alarm::~Alarm()
     db<Alarm>(TRC) << "~Alarm(this=" << this << ")" << endl;
 
     _request.remove(this);
-
-    Task::self()->dismiss(this);
 
     unlock();
 }

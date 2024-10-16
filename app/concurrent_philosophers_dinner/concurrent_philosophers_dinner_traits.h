@@ -10,10 +10,10 @@ template<> struct Traits<Build>: public Traits_Tokens
 {
     // Basic configuration
     static const unsigned int SMOD = LIBRARY;
-    static const unsigned int ARCHITECTURE = IA32;
-    static const unsigned int MACHINE = PC;
-    static const unsigned int MODEL = Legacy_PC;
-    static const unsigned int CPUS = ((MODEL == Legacy_PC) || (MODEL == Raspberry_Pi3) || (MODEL == Realview_PBX) || (MODEL == Zynq) || (MODEL == SiFive_U)) ? 2 : 1;
+    static const unsigned int ARCHITECTURE = RV64;
+    static const unsigned int MACHINE = RISCV;
+    static const unsigned int MODEL = SiFive_U;
+    static const unsigned int CPUS = 1;
     static const unsigned int NETWORKING = STANDALONE;
     static const unsigned int EXPECTED_SIMULATION_TIME = 60; // s (0 => not simulated)
 
@@ -117,9 +117,8 @@ template<> struct Traits<Thread>: public Traits<Build>
     static const bool smp = Traits<System>::multicore;
     static const bool trace_idle = hysterically_debugged;
     static const bool simulate_capacity = false;
-    static const int priority_inversion_protocol = NONE;
 
-    typedef IF<(CPUS > 1), Fixed_CPU, FCFS>::Result Criterion;
+    typedef IF<(CPUS > 1), GRR, RR>::Result Criterion;
     static const unsigned int QUANTUM = 10000; // us
 };
 

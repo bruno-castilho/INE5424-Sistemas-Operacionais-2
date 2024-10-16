@@ -4,6 +4,9 @@
 
 __BEGIN_SYS
 
+#ifndef __armv7m__
+volatile unsigned int ARMv7_A::_cores;
+#endif
 unsigned int CPU::_cpu_clock;
 unsigned int CPU::_bus_clock;
 

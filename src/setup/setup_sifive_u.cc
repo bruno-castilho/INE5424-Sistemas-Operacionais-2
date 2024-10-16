@@ -70,35 +70,56 @@ private:
 private:
     System_Info * si;
     MMU mmu;
+
+    static volatile bool paging_ready;
 };
 
+volatile bool Setup::paging_ready = false;
 
 Setup::Setup()
 {
     si = reinterpret_cast<System_Info *>(&__boot_time_system_info);
+    if(si->bm.n_cpus > Traits<Machine>::CPUS)
+        si->bm.n_cpus = Traits<Machine>::CPUS;
 
-    // SETUP doesn't handle global constructors, so we need to manually initialize any object with a non-empty default constructor
-    new (&kout) OStream;
-    new (&kerr) OStream;
-    Display::init();
-    kout << endl;
-    kerr << endl;
+    if(CPU::id() == CPU::BSP) {
+        // SETUP doesn't handle global constructors, so we need to manually initialize any object with a non-empty default constructor
+        new (&kout) OStream;
+        new (&kerr) OStream;
+        Display::init();
+        kout << endl;
+        kerr << endl;
 
-    db<Setup>(TRC) << "Setup(si=" << reinterpret_cast<void *>(si) << ",sp=" << CPU::sp() << ")" << endl;
-    db<Setup>(INF) << "Setup:si=" << *si << endl;
+        db<Setup>(TRC) << "Setup(si=" << reinterpret_cast<void *>(si) << ",sp=" << CPU::sp() << ")" << endl;
+        db<Setup>(INF) << "Setup:si=" << *si << endl;
 
-    // Print basic facts about this EPOS instance
-    say_hi();
+        // Print basic facts about this EPOS instance
+        say_hi();
 
-    if(Traits<Machine>::supervisor) {
-        // Configure a flat memory model for the single task in the system
-        setup_flat_paging();
+        if(Traits<Machine>::supervisor) {
+            // Configure a flat memory model for the single task in the system
+            setup_flat_paging();
 
-        // Relocate the machine to supervisor interrupt forwarder
-        setup_m2s();
+            // Relocate the machine to supervisor interrupt forwarder
+            setup_m2s();
 
-        // Enable paging
-        enable_paging();
+           // Enable paging
+           enable_paging();
+
+            // Signalize other CPUs that paging is up
+            paging_ready = true;
+        }
+    } else { // additional CPUs
+
+        db<Setup>(TRC) << "Setup(si=" << reinterpret_cast<void *>(si) << ",sp=" << CPU::sp() << ")" << endl;
+    
+        if(Traits<Machine>::supervisor) {
+            // Wait for the Boot CPU to setup page tables
+            while(!paging_ready);
+
+            // Enable paging
+            enable_paging();
+        }
     }
 
     // SETUP ends here, so let's transfer control to the next stage (INIT or APP)
@@ -204,15 +225,16 @@ void _entry() // machine mode
 {
     typedef IF<Traits<CPU>::WORD_SIZE == 32, SV32_MMU, SV39_MMU>::Result MMU; // architecture.h will use No_MMU if multitasking is disable, but we need the correct MMU for the Flat Memory Model.
 
-    if(CPU::mhartid() == 0)                             // SiFive-U has 5 cores, but core 0 (an E51) does not feature an MMU, so we halt it and let core 1 (an U54) run in a single-core configuration
+    if(CPU::mhartid() == 0)                             // SiFive-U has 5 cores, but core 0 (an E51) does not feature an MMU, so we halt it and let the other cores (U54) run in a multicore configuration
         CPU::halt();
 
     CPU::mstatusc(CPU::MIE);                            // disable interrupts (they will be reenabled at Init_End)
 
     CPU::tp(CPU::mhartid() - 1);                        // tp will be CPU::id() for supervisor mode; we won't count core 0, which is an heterogeneous E51
-    CPU::sp(Memory_Map::BOOT_STACK + Traits<Machine>::STACK_SIZE - sizeof(long)); // set the stack pointer, thus creating a stack for SETUP
+    CPU::sp(Memory_Map::BOOT_STACK + Traits<Machine>::STACK_SIZE * (CPU::id() + 1) - sizeof(long)); // set the stack pointer, thus creating a stack for SETUP
 
-    Machine::clear_bss();
+    if(CPU::id() == CPU::BSP)
+        Machine::clear_bss();
 
     if(Traits<Machine>::supervisor) {
         CPU::mtvec(CPU::INT_DIRECT, Memory_Map::INT_M2S);   // setup a machine mode interrupt handler to forward timer interrupts (which cannot be delegated via mideleg)
@@ -230,11 +252,10 @@ void _entry() // machine mode
         CPU::mstatus(CPU::MPP_M);                           // continue in machine mode at MRET
     }
 
-    CLINT::mtimecmp(-1ULL);                             // configure MTIMECMP so it won't trigger a timer interrupt before we can setup_m2s()
+    CLINT::mtimecmp(-1ULL);                                 // configure MTIMECMP so it won't trigger a timer interrupt before we can setup_m2s()
 
-
-    CPU::mepc(CPU::Reg(&_setup));                       // entry = _setup
-    CPU::mret();                                        // enter supervisor mode at setup (mepc) with interrupts enabled (mstatus.mpie = true)
+    CPU::mepc(CPU::Reg(&_setup));                           // entry = _setup
+    CPU::mret();                                            // enter supervisor mode at setup (mepc) with interrupts enabled (mstatus.mpie = true)
 }
 
 void _setup() // supervisor mode
@@ -277,7 +298,9 @@ if(Traits<CPU>::WORD_SIZE == 32) {
 
     CPU::Reg id = CPU::mcause();
 
-    if((id & CLINT::INT_MASK) == CLINT::IRQ_MAC_TIMER) {
+    if((id & CLINT::INT_MASK) == CLINT::IRQ_MAC_SOFT) {
+       IC::ipi_eoi(id & CLINT::INT_MASK);               // MIP.MSI is handled by CLINT
+    } else if((id & CLINT::INT_MASK) == CLINT::IRQ_MAC_TIMER) {
         Timer::reset();                                 // MIP.MTI is a direct logic on (MTIME == MTIMECMP) and reseting the Timer (i.e. adjusting MTIMECMP) seems to be the only way to clear it
         CPU::miec(CPU::MTI);
         CPU::mips(CPU::STI);                            // forward desired interrupts to supervisor mode

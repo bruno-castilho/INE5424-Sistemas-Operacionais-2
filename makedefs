@@ -23,7 +23,7 @@ endif
 pc_CC_FLAGS             = -m32 -Wa,--32
 pc_AS_FLAGS             = --32
 pc_LD_FLAGS             = -m elf_i386 -z noexecstack
-pc_EMULATOR             = qemu-system-i386 $(QEMU_DEBUG) -no-acpi -smp $(CPUS) -m $(RAM_SIZE_MB) -nographic -no-reboot -drive format=raw,index=0,if=floppy,read-only=on,file=
+pc_EMULATOR             = qemu-system-i386 $(QEMU_DEBUG) -no-acpi -smp $(CPUS) -m $(RAM_SIZE_MB) -enable-kvm -cpu host -nographic -no-reboot -drive format=raw,index=0,if=floppy,read-only=on,file=
 pc_DEBUGGER             = gdb
 pc_FLASHER              =
 pc_MAGIC                = --nmagic
@@ -189,7 +189,7 @@ endif
 # Tools and flags to compile applications
 ACC             = $(BIN)/eposcc $(MACH_CC_FLAGS) -c -ansi -O
 ACCFLAGS        = $(MACH_CXX_FLAGS)
-ALD             = $(BIN)/eposcc --$(SMOD) --no-warn-mismatch --no-warn-rwx-segments
+ALD             = $(BIN)/eposcc --$(SMOD) --no-warn-mismatch
 ALDFLAGS        = --gc-sections $(MACH_MAGIC)
 
 # Tools and flags to compile the system
@@ -208,7 +208,7 @@ DEBUGGER        = $(MACH_DEBUGGER)
 EMULATOR        = $(MACH_EMULATOR)
 FLASHER         = $(MACH_FLASHER)
 LD              = $(PREFIX)ld
-LDFLAGS         = $(MACH_LD_FLAGS) -nostdlib -L$(LIB) -Bstatic --no-warn-rwx-segments
+LDFLAGS         = $(MACH_LD_FLAGS) -nostdlib -L$(LIB) -Bstatic
 MKBI            = $(BIN)/eposmkbi $(if $(findstring s,$(word 1,$(MAKEFLAGS))),-s) $(EPOS)
 OBJCOPY         = $(PREFIX)objcopy
 OBJCOPYFLAGS    = -R .note -R .comment

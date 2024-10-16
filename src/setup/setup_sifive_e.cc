@@ -55,20 +55,23 @@ Setup::Setup()
     CPU::int_disable(); // interrupts will be re-enabled at init_end
 
     si = reinterpret_cast<System_Info *>(&__boot_time_system_info);
+    if(si->bm.n_cpus > Traits<Machine>::CPUS)
+        si->bm.n_cpus = Traits<Machine>::CPUS;
 
-    // SETUP doesn't handle global constructors, so we need to manually initialize any object with a non-empty default constructor
-    new (&kout) OStream;
-    new (&kerr) OStream;
+    if(CPU::id() == CPU::BSP) {
+        // SETUP doesn't handle global constructors, so we need to manually initialize any object with a non-empty default constructor
+        new (&kout) OStream;
+        new (&kerr) OStream;
+        Display::init();
+        kout << endl;
+        kerr << endl;
 
-    Display::init();
-    kout << endl;
-    kerr << endl;
+        db<Setup>(TRC) << "Setup(si=" << reinterpret_cast<void *>(si) << ",sp=" << CPU::sp() << ")" << endl;
+        db<Setup>(INF) << "Setup:si=" << *si << endl;
 
-    db<Setup>(TRC) << "Setup(si=" << reinterpret_cast<void *>(si) << ",sp=" << CPU::sp() << ")" << endl;
-    db<Setup>(INF) << "Setup:si=" << *si << endl;
-
-    // Print basic facts about this EPOS instance
-    say_hi();
+        // Print basic facts about this EPOS instance
+        say_hi();
+    }
 
     // SETUP ends here, so let's transfer control to the next stage (INIT or APP)
     call_next();
@@ -122,10 +125,12 @@ using namespace EPOS::S;
 void _entry() // machine mode
 {
     CPU::mstatusc(CPU::MIE);                            // disable interrupts (they will be reenabled at Init_End)
+    CPU::mies(CPU::MSI);                                // enable interrupts at CLINT so IPI and timer can be triggered
 
     CPU::sp(Memory_Map::BOOT_STACK + Traits<Machine>::STACK_SIZE - sizeof(long)); // set this hart stack
 
-    Machine::clear_bss();
+    if(CPU::id() == CPU::BSP)
+        Machine::clear_bss();
 
     CPU::mstatus(CPU::MPP_M);                           // stay in machine mode at mret
 

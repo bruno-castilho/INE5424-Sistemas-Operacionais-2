@@ -12,6 +12,7 @@ template<> struct Traits<Machine_Common>: public Traits<Build>
 {
 protected:
     static const bool library = (Traits<Build>::SMOD == Traits<Build>::LIBRARY);
+    static const bool multicore = (Traits<Build>::CPUS > 1);
 };
 
 template<> struct Traits<Machine>: public Traits<Machine_Common>
@@ -21,10 +22,11 @@ public:
     static const unsigned long NOT_USED         = -1UL;
 
     // RISC-V mode for library
-    static const bool supervisor = true;                                                        // Run EPOS library in supervisor mode
+    static const bool supervisor = !library;                                                    // Run EPOS library in machine mode (works in supervisor as well)
 
     // CPU numbering
     static const unsigned long CPU_OFFSET       = 1;                                            // We skip core zero, which is a E CPU without MMU
+    static const unsigned int  BSP              = 0;                                            // Bootstrap/service processor
 
     // Clocks
     static const unsigned long CLOCK            = 1000000000;                                   // CORECLK
@@ -57,7 +59,7 @@ public:
     // Default Sizes and Quantities
     static const unsigned int MAX_THREADS       = 15;
     static const unsigned int STACK_SIZE        = 128 * 1024;
-    static const unsigned int HEAP_SIZE         = 4 * 1024 * 1024;
+    static const unsigned int HEAP_SIZE         = 1 * 1024 * 1024;
 };
 
 template <> struct Traits<IC>: public Traits<Machine_Common>

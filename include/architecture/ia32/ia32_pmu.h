@@ -8,6 +8,7 @@
 #include <architecture/pmu.h>
 #undef __pmu_common_only__
 #include <utility/handler.h>
+#include <machine/ic.h>
 
 __BEGIN_SYS
 

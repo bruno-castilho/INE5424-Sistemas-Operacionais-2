@@ -16,7 +16,13 @@ class ARMv8_M;
 
 class ARMv8_A: public ARMv7_A
 {
+protected:
+    static const bool multicore = Traits<System>::multicore;
+
 public:
+    // Bootstrap/service CPU id
+    static const unsigned long BSP = 0;
+
     static const unsigned int EXCEPTIONS =  64; // 2^6 (bits 26 to 31 of ESR_EL1)
 
     // HCR bits
@@ -289,9 +295,18 @@ public:
     static bool int_disabled() { return cpsr() & (FLAG_F | FLAG_I); }
 
     using ARMv7_A::halt;
+    using ARMv7_A::sev;
 
-    static unsigned int id() { return 0; }
-    static unsigned int cores() { return 1; }
+    static unsigned int id() {
+        if(multicore) {
+            Reg32 id;
+            ASM("mrs %0, mpidr_el1" : "=r"(id) : : );
+            return id & 0x3;
+        } else
+            return 0;
+    }
+    static unsigned int cores() { return Traits<Build>::CPUS; }
+    static void smp_barrier_init(unsigned int cores) { _cores = cores; }
 
     static void fpu_save();
     static void fpu_restore();
@@ -423,6 +438,9 @@ public:
     static void flush_branch_predictors();
 
     static void flush_caches();
+    
+protected:
+    static volatile unsigned int _cores;
 };
 
 
@@ -593,6 +611,8 @@ public:
         return old;
     }
  
+    static void smp_barrier(unsigned int cores = ARMv8_A::cores()) { if(multicore) CPU_Common::smp_barrier<&finc>(cores, id()); }
+
     static void switch_context(Context ** o, Context * n);
 
     template<typename ... Tn>

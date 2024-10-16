@@ -13,8 +13,12 @@ class CPU: protected CPU_Common
 
 private:
     static const bool supervisor = Traits<Machine>::supervisor;
+    static const bool amo = Traits<CPU>::atomic_memory_operations;
 
 public:
+    // Bootstrap/service CPU id
+    static const unsigned long BSP = Traits<Machine>::BSP;
+
     // CPU Native Data Types
     using CPU_Common::Reg8;
     using CPU_Common::Reg16;
@@ -228,8 +232,10 @@ public:
     static Log_Addr fr() { Reg r; ASM("mv %0, a0" :  "=r"(r)); return r; }
     static void fr(Reg r) {       ASM("mv a0, %0" : : "r"(r) :); }
 
-    static unsigned int id() { return supervisor ? tp() : 0; }
-    static unsigned int cores() { return 1; }
+    static unsigned int id() { return tp(); }
+    static unsigned int cores() { return Traits<Build>::CPUS; }
+
+    static void smp_barrier(unsigned long cores = CPU::cores()) { CPU_Common::smp_barrier<&finc>(cores, id()); }
 
     using CPU_Common::clock;
     using CPU_Common::min_clock;
@@ -252,13 +258,19 @@ public:
     static T tsl(volatile T & lock) {
         register T old;
         if(sizeof(T) == sizeof(Reg64))
-            ASM("1: lr.d    %0, (%1)        \n"
-                "   sc.d    t3, %2, (%1)    \n"
-                "   bnez    t3, 1b          \n" : "=&r"(old) : "r"(&lock), "r"(1) : "t3", "cc", "memory");
+            if(amo)
+                ASM("amoswap.d %0, %2, (%1)" : "=&r"(old) : "r"(&lock), "r"(1) : "memory");
+            else
+                ASM("1: lr.d    %0, (%1)        \n"
+                    "   sc.d    t3, %2, (%1)    \n"
+                    "   bnez    t3, 1b          \n" : "=&r"(old) : "r"(&lock), "r"(1) : "t3", "cc", "memory");
         else
-            ASM("1: lr.w    %0, (%1)        \n"
-                "   sc.w    t3, %2, (%1)    \n"
-                "   bnez    t3, 1b          \n" : "=&r"(old) : "r"(&lock), "r"(1) : "t3", "cc", "memory");
+            if(amo)
+                ASM("amoswap.w %0, %2, (%1)" : "=&r"(old) : "r"(&lock), "r"(1) : "memory");
+            else
+                ASM("1: lr.w    %0, (%1)        \n"
+                    "   sc.w    t3, %2, (%1)    \n"
+                    "   bnez    t3, 1b          \n" : "=&r"(old) : "r"(&lock), "r"(1) : "t3", "cc", "memory");
         return old;
     }
 
@@ -266,15 +278,21 @@ public:
     static T finc(volatile T & value) {
         register T old;
         if(sizeof(T) == sizeof(Reg64))
-            ASM("1: lr.d    %0, (%1)        \n"
-                "   addi    t3, %0, 1       \n"
-                "   sc.d    t3, t3, (%1)    \n"
-                "   bnez    t3, 1b          \n" : "=&r"(old) : "r"(&value) : "t3", "cc", "memory");
+            if(amo)
+                ASM("amoadd.d %0, %2, (%1)" : "=r&"(old) : "r"(&value), "r"(1) : "memory");
+            else
+                ASM("1: lr.d    %0, (%1)        \n"
+                    "   addi    t3, %0, 1       \n"
+                    "   sc.d    t3, t3, (%1)    \n"
+                    "   bnez    t3, 1b          \n" : "=&r"(old) : "r"(&value) : "t3", "cc", "memory");
         else
-            ASM("1: lr.w    %0, (%1)        \n"
-                "   addi    t3, %0, 1       \n"
-                "   sc.w    t3, t3, (%1)    \n"
-                "   bnez    t3, 1b          \n" : "=&r"(old) : "r"(&value) : "t3", "cc", "memory");
+            if(amo)
+                ASM("amoadd.w %0, %2, (%1)" : "=&r"(old) : "r"(&value), "r"(1) : "memory");
+            else
+                ASM("1: lr.w    %0, (%1)        \n"
+                    "   addi    t3, %0, 1       \n"
+                    "   sc.w    t3, t3, (%1)    \n"
+                    "   bnez    t3, 1b          \n" : "=&r"(old) : "r"(&value) : "t3", "cc", "memory");
         return old;
     }
 
@@ -282,15 +300,21 @@ public:
     static T fdec(volatile T & value) {
         register T old;
         if(sizeof(T) == sizeof(Reg64))
-            ASM("1: lr.d    %0, (%1)        \n"
-                "   addi    t3, %0, -1      \n"
-                "   sc.d    t3, t3, (%1)    \n"
-                "   bnez    t3, 1b          \n" : "=&r"(old) : "r"(&value) : "t3", "cc", "memory");
+            if(amo)
+                ASM("amoadd.d %0, %2, (%1)" : "=r"(old) : "r"(&value), "r"(-1) : "memory");
+            else
+                ASM("1: lr.d    %0, (%1)        \n"
+                    "   addi    t3, %0, -1      \n"
+                    "   sc.d    t3, t3, (%1)    \n"
+                    "   bnez    t3, 1b          \n" : "=&r"(old) : "r"(&value) : "t3", "cc", "memory");
         else
-            ASM("1: lr.w    %0, (%1)        \n"
-                "   addi    t3, %0, -1      \n"
-                "   sc.w    t3, t3, (%1)    \n"
-                "   bnez    t3, 1b          \n" : "=&r"(old) : "r"(&value) : "t3", "cc", "memory");
+            if(amo)
+                ASM("amoadd.w %0, %2, (%1)" : "=&r"(old) : "r"(&value), "r"(-1) : "memory");
+            else
+                ASM("1: lr.w    %0, (%1)        \n"
+                    "   addi    t3, %0, -1      \n"
+                    "   sc.w    t3, t3, (%1)    \n"
+                    "   bnez    t3, 1b          \n" : "=&r"(old) : "r"(&value) : "t3", "cc", "memory");
         return old;
     }
 

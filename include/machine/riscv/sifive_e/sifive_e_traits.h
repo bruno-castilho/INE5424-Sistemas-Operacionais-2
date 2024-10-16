@@ -12,6 +12,7 @@ template<> struct Traits<Machine_Common>: public Traits<Build>
 {
 protected:
     static const bool library = (Traits<Build>::SMOD == Traits<Build>::LIBRARY);
+    static const bool multicore = (Traits<Build>::CPUS > 1);
 };
 
 template<> struct Traits<Machine>: public Traits<Machine_Common>

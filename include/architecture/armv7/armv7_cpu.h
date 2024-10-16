@@ -10,9 +10,13 @@ __BEGIN_SYS
 class ARMv7: protected CPU_Common
 {
 protected:
+    static const bool multicore = Traits<System>::multicore;
     static const bool save_fpu  = Traits<FPU>::enabled && !Traits<FPU>::user_save;
 
 public:
+    // Bootstrap/service CPU id
+    static const unsigned long BSP = 0;
+
     // CPU Native Data Types
     using CPU_Common::Reg8;
     using CPU_Common::Reg16;
@@ -278,6 +282,8 @@ public:
 
     static unsigned int id() { return 0; }
     static unsigned int cores() { return 1; }
+    static void smp_barrier(unsigned long cores = 1) { assert(cores == 1); }
+    static void smp_barrier_init(unsigned int cores) { assert(cores == 1); }
 
     static void fpu_save() {}           // no FPU in M3, implement for M4
     static void fpu_restore() {}        // no FPU in M3, implement for M4
@@ -456,8 +462,27 @@ public:
 
     using ARMv7::halt;
 
-    static unsigned int id() { return 0; }
-    static unsigned int cores() { return 1; }
+    static unsigned int id() {
+        if(multicore) {
+            Reg id;
+            ASM("mrc p15, 0, %0, c0, c0, 5" : "=r"(id) : : );
+            return id & 0x3;
+        } else
+            return 0;
+    }
+
+    static unsigned int cores() {
+        if(multicore && (Traits<Build>::MODEL != Traits<Build>::Raspberry_Pi3)) {
+            Reg n;
+            ASM("mrc p15, 4, %0, c15, c0, 0 \t\n\
+                 ldr %0, [%0, #0x004]" : "=r"(n) : : );
+            return (n & 0x3) + 1;
+        } else
+            return Traits<Build>::CPUS;
+    }
+
+    static void smp_barrier(unsigned int cores = ARMv7_A::cores()) { if(multicore) CPU_Common::smp_barrier<&finc>(cores, id()); }
+    static void smp_barrier_init(unsigned int cores) { _cores = cores; }
 
     static void fpu_enable() {
         // This code assumes a compilation with mfloat-abi=hard and does not care for context switches
@@ -534,6 +559,9 @@ public:
     static void flush_branch_predictors() { ASM("mcr p15, 0, %0, c7, c5, 6" : : "r" (0)); }
 
     static void flush_caches();
+
+protected:
+    static volatile unsigned int _cores;
 };
 
 inline void ARMv7_A::Context::push(bool interrupt, bool stay_in_svc)

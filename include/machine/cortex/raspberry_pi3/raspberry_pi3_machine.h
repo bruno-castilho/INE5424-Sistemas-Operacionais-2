@@ -30,8 +30,11 @@ public:
     static const UUID & uuid() { return System::info()->bm.uuid; }
 
 private:
-    static void pre_init() {}
+    static void pre_init();
     static void init() {}
+
+private:
+    static volatile unsigned int _cores;
 };
 
 typedef Raspberry_Pi3 Machine_Model;

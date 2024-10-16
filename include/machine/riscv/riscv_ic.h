@@ -255,6 +255,14 @@ public:
     static Interrupt_Id irq2int(Interrupt_Id i) { return ((i == IRQ_PLIC) ? claim() + CLINT::IRQS : i) + EXCS; }
     static Interrupt_Id int2irq(Interrupt_Id i) { return  ((i > HARD_INT) ? i - CLINT::IRQS : i) - EXCS; }
 
+    static void ipi(unsigned int cpu, Interrupt_Id i) {
+        db<IC>(TRC) << "IC::ipi(cpu=" << cpu << ",int=" << i << ")" << endl;
+        assert(i < INTS);
+        msip(cpu) = 1;
+    }
+
+    static void ipi_eoi(Interrupt_Id i) { msip(CPU::id()) = 0; }
+
 private:
     static void dispatch();
 
