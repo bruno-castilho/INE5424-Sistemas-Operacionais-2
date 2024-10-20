@@ -23,8 +23,11 @@ void CPU::init()
     }
 
     // Initialize the PMU	
-    if(Traits<PMU>::enabled)
+    if(Traits<PMU>::enabled){
         PMU::init();
+        PMU::config(3, UNHALTED_CYCLES);
+    }
+
 }
 
 void CPU::smp_barrier_init(unsigned int cores) {

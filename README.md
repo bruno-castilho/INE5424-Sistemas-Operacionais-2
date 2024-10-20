@@ -40,6 +40,9 @@ You can also built for specific applications using ```make APPLICATION=<app>```,
 
 After building an application-oriented instance of EPOS, you can run the application with the tailored EPOS on QEMU using: ```make APPLICATION=<app> run```
 
+### Devcontainer
+This repository contains a configuration for a development environment using containers. To use it, you will need to set up the [devcontainer](https://code.visualstudio.com/docs/devcontainers/containers) on your machine.
+
 ## Contributing
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
