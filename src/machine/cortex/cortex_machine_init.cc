@@ -8,12 +8,15 @@ void Machine::pre_init(System_Info * si)
 {
     Engine::pre_init();
 
-    Display::init();
+    if(CPU::id() == CPU::BSP)
+        Display::init();
 
     db<Init, Machine>(TRC) << "Machine::pre_init()" << endl;
 
-    if(Traits<IC>::enabled)
-        IC::init();
+    if(CPU::id() == CPU::BSP) {
+        if(Traits<IC>::enabled)
+            IC::init();
+    }
 }
 
 void Machine::init()

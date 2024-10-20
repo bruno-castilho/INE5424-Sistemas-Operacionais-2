@@ -39,7 +39,8 @@ public:
         INT_SPI                 = EXCS + SPI_INT,
         INT_GPU                 = EXCS + MAILBOX_GPU_IRQ,
         INT_PMU                 = EXCS + MAILBOX_PMU_IRQ,
-        INT_AIX                 = EXCS + MAILBOX_AIX_IRQ
+        INT_AIX                 = EXCS + MAILBOX_AIX_IRQ,
+        INT_RESCHEDULER         = EXCS + MAILBOX0_IRQ
     };
 
 public:

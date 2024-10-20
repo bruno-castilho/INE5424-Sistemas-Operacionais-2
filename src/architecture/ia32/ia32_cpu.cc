@@ -7,6 +7,7 @@
 
 __BEGIN_SYS
 
+volatile unsigned int CPU::_cores;
 Hertz CPU::_cpu_clock;
 Hertz CPU::_cpu_current_clock;
 Hertz CPU::_bus_clock;

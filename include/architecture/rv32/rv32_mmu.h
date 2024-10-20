@@ -64,7 +64,7 @@ public:
     public:
         Page_Flags() {}
         Page_Flags(Reg f): _flags(f) {}
-        Page_Flags(const Flags & f): _flags(V | IAD |
+        Page_Flags(Flags f): _flags(V | IAD |
                                             ((f & Flags::RD)  ? R  : 0) |
                                             ((f & Flags::WR)  ? W  : 0) |
                                             ((f & Flags::EX)  ? X  : 0) |

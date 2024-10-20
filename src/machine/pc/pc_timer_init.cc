@@ -11,7 +11,8 @@ void Timer::init()
 
     CPU::int_disable();
 
-    IC::int_vector(IC::INT_SYS_TIMER, int_handler);
+    if(CPU::id() == CPU::BSP)
+        IC::int_vector(IC::INT_SYS_TIMER, int_handler);
 
     disable();
     reset();

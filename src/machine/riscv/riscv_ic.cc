@@ -45,6 +45,9 @@ void IC::dispatch()
             Timer::reset(); // MIP.MTI is a direct logic on (MTIME == MTIMECMP) and reseting the Timer seems to be the only way to clear it
     }
 
+    if(id == INT_RESCHEDULER)
+        IC::ipi_eoi(id & CLINT::INT_MASK);
+
     _int_vector[id](id);
 }
 

@@ -5,6 +5,11 @@
 
 __BEGIN_SYS
 
+
+volatile unsigned int Variable_Queue_Scheduler::_next_queue;
+
+FCFS::FCFS(int p, Tn & ... an): Priority((p == IDLE) ? IDLE : Alarm::elapsed()) {}
+
 inline RT_Common::Tick RT_Common::elapsed() { return Alarm::elapsed(); }
 
 RT_Common::Tick RT_Common::ticks(Microsecond time)
@@ -121,7 +126,7 @@ void LLF::handle(Event event)
     //    if((_priority >= PERIODIC) && (_priority < APERIODIC) && ((event & JOB_FINISH) || (event & UPDATE_ALL)))
 }
 
-// Since the definition of FCFS above is only known to this unit, forcing its instantiation here so it gets emitted in scheduler.o for subsequent linking with other units is necessary.
+// Since the definition above is only known to this unit, forcing its instantiation here so it gets emitted in scheduler.o for subsequent linking with other units is necessary.
 template FCFS::FCFS<>(int p);
 
 __END_SYS

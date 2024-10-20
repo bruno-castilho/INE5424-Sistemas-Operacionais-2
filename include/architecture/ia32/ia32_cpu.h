@@ -13,7 +13,13 @@ class CPU: private CPU_Common
     friend class Init_System;
     friend class Machine;
 
+private:
+    static const bool multicore = Traits<System>::multicore;
+
 public:
+    // Bootstrap/service CPU id
+    static const unsigned long BSP = 0;
+
     // Native Data Types
     using CPU_Common::Reg8;
     using CPU_Common::Reg16;
@@ -344,8 +350,8 @@ public:
     static Reg fr() { return eax(); }
     static void fr(Reg r) { eax(r); }
 
-    static volatile unsigned int id() { return 0; }
-    static unsigned int cores() { return 1; }
+    static volatile unsigned int id();
+    static unsigned int cores() { return multicore ? _cores : 1; }
 
     static Hertz clock() { return _cpu_current_clock; }
     static void clock(Hertz frequency) {
@@ -408,6 +414,8 @@ public:
         ASM("lock cmpxchgl %2, %3\n" : "=a"(compare) : "a"(compare), "r"(replacement), "m"(value) : "memory");
         return compare;
     }
+
+    static void smp_barrier(unsigned long cores = CPU::cores()) { CPU_Common::smp_barrier<&finc>(cores, id()); }
 
     // MMU operations
     static Reg  pd() { return cr3(); }
@@ -589,9 +597,11 @@ private:
     }
     static void init_stack_helper(Log_Addr sp) {}
 
+    static void smp_barrier_init(unsigned int cores);
     static void init();
 
 private:
+    static volatile unsigned int _cores;
     static Hertz _cpu_clock;
     static Hertz _cpu_current_clock;
     static Hertz _bus_clock;

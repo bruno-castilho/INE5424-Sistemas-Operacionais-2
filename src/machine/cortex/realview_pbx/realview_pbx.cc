@@ -5,6 +5,8 @@
 
 __BEGIN_SYS
 
+volatile unsigned int Realview_PBX::_cores;
+
 void Realview_PBX::reboot()
 {
 //TODO: reboot!

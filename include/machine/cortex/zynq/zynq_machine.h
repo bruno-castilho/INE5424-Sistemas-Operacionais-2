@@ -291,6 +291,9 @@ public:
 
     static void pre_init() {}
     static void init();
+
+private:
+    static volatile unsigned int _cores;
 };
 
 typedef Zynq Machine_Model;

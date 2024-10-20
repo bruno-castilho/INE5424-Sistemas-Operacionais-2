@@ -21,6 +21,7 @@ class Machine: private Machine_Common
 
 private:
     static const bool supervisor = Traits<Machine>::supervisor;
+    static const bool multicore = Traits<System>::multicore;
 
 public:
     Machine() {}

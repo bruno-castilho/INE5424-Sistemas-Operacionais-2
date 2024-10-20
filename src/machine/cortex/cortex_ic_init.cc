@@ -64,6 +64,9 @@ void IC::init()
         enable(INT_TSC_TIMER);
     }
 #else
+#ifdef __raspberry_pi3__
+    _eoi_vector[INT_RESCHEDULER] = mailbox_eoi;
+#endif
 #ifdef __armv8__
     _int_vector[INT_PREFETCH_ABORT] = prefetch_abort;
     _int_vector[INT_DATA_ABORT] = data_abort;

@@ -90,6 +90,68 @@ private:
     void out_of_memory(unsigned long bytes);
 };
 
+
+// Wrapper for non-atomic heap
+template<typename T, bool atomic>
+class Heap_Wrapper: public T
+{
+public:
+    Heap_Wrapper() {}
+    Heap_Wrapper(void * addr, unsigned int bytes): T(addr, bytes) {}
+};
+
+
+// Wrapper for atomic heap
+extern Simple_Spin _heap_lock;
+
+template<typename T>
+class Heap_Wrapper<T, true>: public T
+{
+public:
+    Heap_Wrapper() {}
+    Heap_Wrapper(void * addr, unsigned int bytes): T(addr, bytes) {}
+
+    bool empty() {
+        enter();
+        bool tmp = T::empty();
+        leave();
+        return tmp;
+    }
+
+    unsigned long size() {
+        enter();
+        unsigned long tmp = T::size();
+        leave();
+        return tmp;
+    }
+
+    void * alloc(unsigned long bytes) {
+        enter();
+        void * tmp = T::alloc(bytes);
+        leave();
+        return tmp;
+    }
+
+    void free(void * ptr) {
+        enter();
+        T::free(ptr);
+        leave();
+    }
+
+    void free(void * ptr, unsigned long bytes) {
+        enter();
+        T::free(ptr, bytes);
+        leave();
+    }
+
+private:
+    void enter() { _heap_lock.acquire(); }
+    void leave() { _heap_lock.release(); }
+};
+
+
+typedef Heap_Wrapper<Heap, Traits<System>::multicore> Application_Heap;
+
 __END_UTIL
 
 #endif

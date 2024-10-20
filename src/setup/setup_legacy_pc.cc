@@ -27,6 +27,10 @@ __BEGIN_SYS
 
 extern OStream kout, kerr;
 
+// "_start" Synchronization Globals
+volatile char * Stacks;
+volatile bool Stacks_Ready = false;
+
 class Setup
 {
 private:
@@ -131,43 +135,59 @@ Setup::Setup(char * boot_image)
     db<Setup>(TRC) << "Setup(bi=" << reinterpret_cast<void *>(bi) << ",sp=" << CPU::sp() << ")" << endl;
     db<Setup>(INF) << "Setup:si=" << *si << endl;
 
-    // Disable hardware interrupt triggering at PIC
-    i8259A::reset();
+    if(CPU::id() == CPU::BSP) {
 
-    // Detect RAM
-    unsigned long memb, memt;
-    detect_memory(&memb, &memt);
+        // Disable hardware interrupt triggering at PIC
+        i8259A::reset();
 
-    // Detect PCI devices and calculate PCI apperture
-    detect_pci(&si->bm.mio_base, &si->bm.mio_top);
+        // Detect RAM
+        unsigned long memb, memt;
+        detect_memory(&memb, &memt);
 
-    // Calibrate timers
-    calibrate_timers();
+        // Detect PCI devices and calculate PCI apperture
+        detect_pci(&si->bm.mio_base, &si->bm.mio_top);
 
-    // Build the memory model
-    build_lm();
-    build_pmm();
+        // Calibrate timers
+        calibrate_timers();
 
-    // Print basic facts about this EPOS instance
-    say_hi();
+        // Build the memory model
+        build_lm();
+        build_pmm();
 
-    // Configure the memory model defined above
-    setup_idt();
-    setup_gdt();
-    setup_sys_pt();
-    setup_app_pt();
-    setup_sys_pd();
+        // Print basic facts about this EPOS instance
+        say_hi();
 
-    // Enable paging
-    // We won't be able to print anything before the remap() bellow
-    db<Setup>(INF) << "Setup::pc=" << CPU::pc() << endl;
-    db<Setup>(INF) << "Setup::sp=" << CPU::sp() << endl;
-    db<Setup>(INF) << "Setup::cr0=" << reinterpret_cast<void *>(CPU::cr0()) << endl;
-    db<Setup>(INF) << "Setup::cr3=" << reinterpret_cast<void *>(CPU::cr3()) << endl;
-    enable_paging();
+        // Configure the memory model defined above
+        setup_idt();
+        setup_gdt();
+        setup_sys_pt();
+        setup_app_pt();
+        setup_sys_pd();
 
-    // Load EPOS parts (e.g. INIT, SYSTEM, APP) and adjust pointers that will still be used to their logical addresses
-    load_parts();
+        // Enable paging
+        // We won't be able to print anything before the remap() bellow
+        db<Setup>(INF) << "Setup::pc=" << CPU::pc() << endl;
+        db<Setup>(INF) << "Setup::sp=" << CPU::sp() << endl;
+        db<Setup>(INF) << "Setup::cr0=" << reinterpret_cast<void *>(CPU::cr0()) << endl;
+        db<Setup>(INF) << "Setup::cr3=" << reinterpret_cast<void *>(CPU::cr3()) << endl;
+
+        enable_paging();
+
+        // Load EPOS parts (e.g. INIT, SYSTEM, APP) and adjust pointers that will still be used to their logical addresses
+        load_parts();
+
+        // Signalize other CPUs that paging is up
+        paging_ready = true;
+
+    } else { // additional CPUs
+
+        // Wait for the Boot CPU to setup page tables
+        while(!paging_ready);
+
+        // Enable paging
+        enable_paging();
+
+    }
 
     db<Setup>(INF) << "Setup::pc=" << CPU::pc() << endl;
     db<Setup>(INF) << "Setup::sp=" << CPU::sp() << endl;
@@ -809,19 +829,23 @@ void Setup::call_next()
 
     // Arrange a stack for each CPU to support stage transition
     // The 2 integers on the stacks are room for the return address
-    Log_Addr sp = SYS_STACK + Traits<System>::STACK_SIZE - 2 * sizeof(int);
+    Log_Addr sp = SYS_STACK + Traits<System>::STACK_SIZE * (CPU::id() + 1) - 2 * sizeof(int);
 
     db<Setup>(TRC) << "Setup::call_next(pc=" << pc << ",sp=" << sp << ") => APPLICATION" << endl;
 
     db<Setup>(INF) << "SETUP ends here!" << endl;
 
+    CPU::smp_barrier(si->bm.n_cpus);
+
     // Set SP and call the next stage
     CPU::sp(sp);
     static_cast<void (*)()>(pc)();
 
-    // This will only happen when INIT was called and Thread was disabled
-    // Note we don't have the original stack here anymore!
-    reinterpret_cast<void (*)()>(si->lm.app_entry)();
+    if(CPU::id() == CPU::BSP) {
+        // This will only happen when INIT was called and Thread was disabled
+        // Note we don't have the original stack here anymore!
+        reinterpret_cast<void (*)()>(si->lm.app_entry)();
+    }
 
     // SETUP is now part of the free memory and this point should never be reached, but, just in case ... :-)
     db<Setup>(ERR) << "OS failed to init!" << endl;
@@ -963,6 +987,8 @@ using namespace EPOS::S;
 //------------------------------------------------------------------------
 void _entry()
 {
+    static volatile int cpu_status[Traits<Machine>::CPUS];
+
     // Set EFLAGS
     CPU::flags(CPU::flags() & CPU::FLAG_CLEAR);
 
@@ -978,39 +1004,85 @@ void _entry()
     // The boot strap code loaded the boot image either at Traits<Machine>::IMAGE or on a RAMDISK
     char * bi = reinterpret_cast<char *>((si->bm.img_size <= 2880 * 512) ? Traits<Machine>::IMAGE : Traits<Machine>::RAMDISK);
 
-    // Check SETUP integrity and get information about its ELF structure
-    ELF * elf = reinterpret_cast<ELF *>(&bi[si->bm.setup_offset]);
-    if(!elf->valid())
-        Machine::panic();
-    char * entry = reinterpret_cast<char *>(elf->entry());
+    // Multicore conditional start up
+    if(APIC::id() == CPU::BSP) {
+        // Check SETUP integrity and get information about its ELF structure
+        ELF * elf = reinterpret_cast<ELF *>(&bi[si->bm.setup_offset]);
+        if(!elf->valid())
+            Machine::panic();
+        char * entry = reinterpret_cast<char *>(elf->entry());
 
-    // Test if we can access the address for which SETUP has been compiled
-    *entry = 'G';
-    if(*entry != 'G')
-        Machine::panic();
+        // Test if we can access the address for which SETUP has been compiled
+        *entry = 'G';
+        if(*entry != 'G')
+            Machine::panic();
 
-    // Load SETUP considering the address in the ELF header
-    // Be careful: by reloading SETUP, global variables have been reset to the values stored in the ELF data segment
-    // Also check if this wouldn't destroy the boot image
-    int size = elf->segment_size(0);
-    if(elf->segment_address(0) <= reinterpret_cast<unsigned int>(&bi[si->bm.img_size]))
-        Machine::panic();
-    if(elf->load_segment(0) < 0)
-        Machine::panic();
+        // Load SETUP considering the address in the ELF header
+        // Be careful: by reloading SETUP, global variables have been reset to the values stored in the ELF data segment
+        // Also check if this wouldn't destroy the boot image
+        int size = elf->segment_size(0);
+        if(elf->segment_address(0) <= reinterpret_cast<unsigned int>(&bi[si->bm.img_size]))
+            Machine::panic();
+        if(elf->load_segment(0) < 0)
+            Machine::panic();
+        APIC::remap(APIC::LOCAL_APIC_PHY_ADDR);
 
-    // Move the boot image to after SETUP, so there will be nothing else below SETUP to be preserved
-    // SETUP code + data + 1 stack per CPU
-    register char * dst = MMU::align_page(entry + size + sizeof(MMU::Page));
-    memcpy(dst, bi, si->bm.img_size);
+        // Move the boot image to after SETUP, so there will be nothing else below SETUP to be preserved
+        // SETUP code + data + 1 stack per CPU
+        register char * dst = MMU::align_page(entry + size + sizeof(MMU::Page) * Traits<Machine>::CPUS);
+        memcpy(dst, bi, si->bm.img_size);
+
+        // Passes a pointer to the just allocated stack pool to other CPUs
+        Stacks = dst;
+
+        // Initialize shared CPU counter
+        si->bm.n_cpus = 1;
+
+        // Broadcast INIT IPI to all APs excluding self
+        APIC::ipi_init(cpu_status);
+
+        // Broadcast STARTUP IPI to all APs excluding self
+        // Non-boot CPUs will run a simplified boot strap just to
+        // trampoline them into protected mode
+        // PC_BOOT arranged for this code and stored it at 0x3000
+        // ipi_start() waits for cpu_status to be incremented by the finc
+        // further down in this code
+        APIC::ipi_start(0x3000, cpu_status);
+
+        Stacks_Ready = true;
+
+    } else { // Additional CPUs (APs)
+        // Each AP increments the CPU counter
+        CPU::finc(si->bm.n_cpus);
+
+        // Inform BSP that this AP has been initialized
+        CPU::finc(cpu_status[APIC::id()]);
+
+        // Wait for BSP's ACK
+        while(cpu_status[APIC::id()] != 2);
+
+        if(APIC::id() >= int(Traits<Machine>::CPUS)) {
+            db<Setup>(WRN) << "More CPUs were detected than the current " << "configuration supports (" << Traits<Machine>::CPUS << ")." << endl;
+            db<Setup>(WRN) << "Disabling CPU " << APIC::id() << "!" << endl;
+
+            CPU::int_disable();
+            CPU::halt();
+        }
+
+        // Wait for the boot strap CPU to get us a stack
+        while(!Stacks_Ready);
+    }
 
     // Setup a single page stack for SETUP after its data segment
-    // SP = "entry" + "size" + sizeof(Page)
-    // Be careful: we'll loose our old stack now, so everything we still need to reach Setup() must be in regs or globals!
-    register char * sp = const_cast<char *>(dst);
+    // Boot strap CPU gets the highest address stack
+    // SP = "entry" + "size" + #CPU * sizeof(Page)
+    // Be careful: we'll loose our old stack now, so everything we still
+    // need to reach Setup() must be in regs or globals!
+    register char * sp = const_cast<char *>(Stacks) - sizeof(MMU::Page) * APIC::id();
     ASM("movl %0, %%esp" : : "r" (sp));
 
     // Pass the boot image to SETUP
-    ASM("pushl %0" : : "r" (dst));
+    ASM("pushl %0" : : "r" (Stacks));
 
     // Call setup()
     // the assembly is necessary because the compiler generates
@@ -1021,8 +1093,18 @@ void _entry()
 
 void _setup(char * bi)
 {
-    kerr  << endl;
-    kout  << endl;
+    if(APIC::id() == CPU::BSP) {
+        kerr  << endl;
+        kout  << endl;
+    }
+
+    // Multicore sanity check
+    if(!Traits<System>::multicore && (APIC::id() != CPU::BSP)) {
+        db<Setup>(WRN) << "Multicore disable by config, halting this CPU (" << APIC::id() << ")!" << endl;
+
+        CPU::int_disable();
+        CPU::halt();
+    }
 
     Setup setup(bi);
 }

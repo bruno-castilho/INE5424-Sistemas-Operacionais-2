@@ -1,7 +1,6 @@
 // EPOS Memory Segment Implementation
 
 #include <memory.h>
-#include <process.h>
 
 __BEGIN_SYS
 
@@ -9,9 +8,6 @@ __BEGIN_SYS
 Segment::Segment(unsigned long bytes, Flags flags): Chunk(bytes, flags, WHITE)
 {
     db<Segment>(TRC) << "Segment(bytes=" << bytes << ",flags=" << flags << ") [Chunk::pt=" << Chunk::pt() << ",sz=" << Chunk::size() << "] => " << this << endl;
-
-    if(Task::self()) // segments can be created at boot-time, before Task::init()
-        Task::self()->enroll(this);
 }
 
 
@@ -25,9 +21,6 @@ Segment::Segment(Phy_Addr phy_addr, unsigned long bytes, Flags flags): Chunk(phy
 Segment::~Segment()
 {
     db<Segment>(TRC) << "~Segment() [Chunk::pt=" << Chunk::pt() << "]" << endl;
-    
-    if(Task::self()) // segments can be created at boot-time, before Task::init()
-        Task::self()->dismiss(this);
 }
 
 

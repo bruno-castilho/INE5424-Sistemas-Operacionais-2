@@ -8,6 +8,7 @@
 #include <process.h>
 #include <utility/queue.h>
 #include <utility/handler.h>
+#include <utility/spin.h>
 
 __BEGIN_SYS
 
@@ -32,9 +33,11 @@ class Alarm
 {
     friend class System;                        // for init()
     friend class Alarm_Chronometer;             // for elapsed()
+    friend class FCFS;                          // for elapsed()
     friend class Thread;                        // for elapsed()
     friend class RT_Common;                     // for elapsed()
     friend class Periodic_Thread;               // for times()
+    friend class EDF;                           // for ticks() and elapsed()
 
 private:
     typedef Timer_Common::Tick Tick;
@@ -159,7 +162,7 @@ private:
     Time_Stamp _stop;
 };
 
-class Chronometer: public IF<Traits<TSC>::enabled, TSC_Chronometer, Alarm_Chronometer>::Result {};
+class Chronometer: public IF<Traits<TSC>::enabled && !Traits<System>::multicore, TSC_Chronometer, Alarm_Chronometer>::Result {};
 
 __END_SYS
 
