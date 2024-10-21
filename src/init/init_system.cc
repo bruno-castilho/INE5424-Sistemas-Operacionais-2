@@ -47,7 +47,8 @@ public:
 
         } else {
 
-
+            CPU::smp_barrier();
+            
             db<Init>(INF) << "Initializing the CPU: " << endl;
             CPU::init();
 

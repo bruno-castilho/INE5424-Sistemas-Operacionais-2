@@ -82,7 +82,6 @@ void Thread::constructor_epilogue(Log_Addr entry, unsigned int stack_size) {
         reschedule(_link.rank().queue());
 
 
-
     unlock();
 }
 
@@ -389,38 +388,6 @@ void Thread::rescheduler(IC::Interrupt_Id i)
     unlock();
 }
 
-void Thread::deprioritize(Queue *q)
-{
-    assert(locked()); // locking handled by caller
-
-    if (priority_inversion_protocol == Traits<Build>::NONE)
-        return;
-
-    db<Thread>(TRC) << "Thread::deprioritize(q=" << q << ") [running=" << running() << "]" << endl;
-
-    for (Queue::Iterator i = q->begin(); i != q->end(); ++i)
-    {
-        Thread *t = i->object();
-        Criterion c = t->_natural_priority;
-        if (t->priority() != c)
-        {
-            if (t->_state == READY)
-            {
-                _scheduler.suspend(t);
-                t->_link.rank(c);
-                _scheduler.resume(t);
-            }
-            else if (t->state() == WAITING)
-            {
-                t->_waiting->remove(&t->_link);
-                t->_link.rank(c);
-                t->_waiting->insert(&t->_link);
-            }
-            else
-                t->_link.rank(c);
-        }
-    }
-}
 
 
 void Thread::time_slicer(IC::Interrupt_Id i)
@@ -472,8 +439,8 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
         // passing the volatile to switch_constext forces it to push prev onto the stack,
         // disrupting the context (it doesn't make a difference for Intel, which already saves
         // parameters on the stack anyway).
-        PMU::reset(3);
-        PMU::start(3);
+        PMU::reset(1);
+        PMU::start(1);
         CPU::switch_context(const_cast<Context **>(&prev->_context), next->_context);
 
         if(smp)

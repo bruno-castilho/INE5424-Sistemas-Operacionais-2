@@ -14,7 +14,7 @@ Alarm::Queue Alarm::_request;
 Alarm::Alarm(Microsecond time, Handler * handler, unsigned int times)
 : _time(time), _handler(handler), _times(times), _ticks(ticks(time)), _link(this, _ticks)
 {
-    lock();
+        lock();
 
     db<Alarm>(TRC) << "Alarm(t=" << time << ",tk=" << _ticks << ",h=" << reinterpret_cast<void *>(handler) << ",x=" << times << ") => " << this << endl;
 
@@ -22,10 +22,12 @@ Alarm::Alarm(Microsecond time, Handler * handler, unsigned int times)
         _request.insert(&_link);
         unlock();
     } else {
+        db<Thread>(TRC) << "Thread( " << times << ")" << endl;
         assert(times == 1);
         unlock();
         (*handler)();
     }
+    
 }
 
 Alarm::~Alarm()

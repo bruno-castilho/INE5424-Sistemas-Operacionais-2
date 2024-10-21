@@ -189,6 +189,9 @@ public:
 };
 
 
+
+
+
 // Multicore Algorithms
 class Variable_Queue_Scheduler
 {
@@ -340,7 +343,7 @@ public:
 
 public:
     EDF(int p = APERIODIC): RT_Common(p) {}
-    EDF(Microsecond p, Microsecond d = SAME, Microsecond c = UNKNOWN, unsigned int cpu = ANY);
+    EDF(Microsecond p, Microsecond d = SAME, Microsecond c = UNKNOWN);
 
 
     void handle(Event event);
@@ -361,26 +364,44 @@ public:
 };
 
 
-class MyScheduler : public EDF
+
+class MyScheduler: public EDF, public Variable_Queue_Scheduler
 {
 public:
-    MyScheduler(int p = APERIODIC) : EDF(p) {
+    // QUEUES x HEADS must be equal to Traits<Machine>::CPUS
+    static const unsigned int HEADS = 1;
+    static const unsigned int QUEUES = Traits<Machine>::CPUS / HEADS;
+
+public:
+    template <typename ... Tn>
+    MyScheduler(int p = APERIODIC)
+    : EDF(p), Variable_Queue_Scheduler(((_priority == IDLE) || (_priority == MAIN)) ? current_queue() : 0) {
         _statistics.cycle_count = 0xFFFFFFFFFFFFFFFF;
     }
-    MyScheduler(Microsecond p, Microsecond d = SAME, Microsecond c = UNKNOWN, unsigned int cpu = ANY) : EDF(p, d, c, cpu){
-        _statistics.cycle_count = 0xFFFFFFFFFFFFFFFF;
-    };
 
+    MyScheduler(Microsecond p, Microsecond d = SAME, Microsecond c = UNKNOWN, unsigned int cpu = ANY)
+    : EDF(d, p, c), Variable_Queue_Scheduler((cpu != ANY) ? cpu / HEADS : ++_next_queue %= CPU::cores() / HEADS) {
+        _statistics.cycle_count = 0xFFFFFFFFFFFFFFFF;
+    }
+
+    using Variable_Queue_Scheduler::queue;
+
+    static unsigned int current_queue() { return CPU::id() / HEADS; }
+    static unsigned int current_head() { return CPU::id() % HEADS; }
 };
+
 
 __END_SYS
 
 __BEGIN_UTIL
 
-// Scheduling Queues
 template<typename T>
 class Scheduling_Queue<T, GRR>:
 public Multihead_Scheduling_List<T> {};
+
+template<typename T>
+class Scheduling_Queue<T, MyScheduler>:
+public Scheduling_Multilist<T> {};
 
 template<typename T>
 class Scheduling_Queue<T, Fixed_CPU>:

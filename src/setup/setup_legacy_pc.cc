@@ -186,13 +186,14 @@ Setup::Setup(char * boot_image)
 
         // Enable paging
         enable_paging();
-
     }
 
+    CPU::smp_barrier(si->bm.n_cpus);
     db<Setup>(INF) << "Setup::pc=" << CPU::pc() << endl;
     db<Setup>(INF) << "Setup::sp=" << CPU::sp() << endl;
     db<Setup>(INF) << "Setup::cr0=" << reinterpret_cast<void *>(CPU::cr0()) << endl;
     db<Setup>(INF) << "Setup::cr3=" << reinterpret_cast<void *>(CPU::cr3()) << endl;
+
 
     // SETUP ends here, so let's transfer control to the next stage (INIT or APP)
     call_next();
@@ -709,20 +710,17 @@ void Setup::enable_paging()
     // Flush TLB to ensure we've got the right memory organization
     MMU::flush_tlb();
 
-    if(Traits<Setup>::hysterically_debugged) {
-        db<Setup>(INF) << "Setup::pc=" << CPU::pc() << endl;
-        db<Setup>(INF) << "Setup::sp=" << CPU::sp() << endl;
-    }
 }
+
 
 
 void Setup::load_parts()
 {
-    db<Setup>(TRC) << "Setup::load_parts()" << endl;
-
     // Adjust pointers that will still be used to their logical addresses
     VGA::init(Memory_Map::VGA); // Display can be Serial_Display, so VGA here!
     APIC::remap(Memory_Map::APIC);
+
+    db<Setup>(TRC) << "Setup::load_parts()" << endl;
 
     // Relocate System_Info
     if(sizeof(System_Info) > sizeof(Page))
