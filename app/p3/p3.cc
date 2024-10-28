@@ -2,6 +2,7 @@
 
 #include <time.h>
 #include <real-time.h>
+#include <synchronizer.h>
 #include <utility/geometry.h>
 
 using namespace EPOS;
@@ -20,6 +21,8 @@ int func_c();
 
 OStream cout;
 Chronometer chrono;
+
+Semaphore write(1);
 
 Periodic_Thread * thread_a;
 Periodic_Thread * thread_b;
@@ -50,30 +53,36 @@ inline void exec(char c, Milisecond time = 0)
 {
     Milisecond elapsed = chrono.read() / 1000;
 
-    cout <<  "\nFREQUENCY={maxf="<<  CPU::clock() 
+    write.p();
+    cout <<  "\nCPU={id="<<  CPU::id()
+         << ",curf=" <<  CPU::clock() 
          << ",minf=" <<  CPU::min_clock() 
-         << ",curf=" << CPU::max_clock() 
-         << "}]"
-         << endl;
+         << ",maxf=" << CPU::max_clock() 
+         << "}" << endl;
+
 
 
     cout << "\n" << elapsed << " " << c << "-1"
-         << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",a=" << thread_a->leaderHead->avaliable_time << ",b=" << thread_a->leaderHead->block_size << ",f="  << thread_a->leaderHead->frequency << "}"
-         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",a=" << thread_b->leaderHead->avaliable_time << ",b=" << thread_b->leaderHead->block_size << ",f="  << thread_b->leaderHead->frequency << "}"
-         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",a=" << thread_c->leaderHead->avaliable_time << ",b=" << thread_c->leaderHead->block_size << ",f="  << thread_c->leaderHead->frequency << "}]";
+         << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",a=" << thread_a->leaderHead->available_time << ",b=" << thread_a->leaderHead->block_size << ",f="  << thread_a->leaderHead->frequency << "}"
+         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",a=" << thread_b->leaderHead->available_time << ",b=" << thread_b->leaderHead->block_size << ",f="  << thread_b->leaderHead->frequency << "}"
+         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",a=" << thread_c->leaderHead->available_time << ",b=" << thread_c->leaderHead->block_size << ",f="  << thread_c->leaderHead->frequency << "}]";
 
+
+    write.v();
 
     for(unsigned long i = 0; i < time; i++)
         for(unsigned long j = 0; j < base_loop_count; j++) {
             p = p + Point<long, 2>::trilaterate(p1, 123123, p2, 123123, p3, 123123);
     }
 
+    write.p();
     elapsed = chrono.read() / 1000;
     cout << "\n" << elapsed << " " << c << "-2"
-         << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",a=" << thread_a->leaderHead->avaliable_time << ",b=" << thread_a->leaderHead->block_size << ",f="  << thread_a->leaderHead->frequency << "}"
-         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",a=" << thread_b->leaderHead->avaliable_time << ",b=" << thread_b->leaderHead->block_size << ",f="  << thread_b->leaderHead->frequency << "}"
-         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",a=" << thread_c->leaderHead->avaliable_time << ",b=" << thread_c->leaderHead->block_size << ",f="  << thread_c->leaderHead->frequency << "}]";
+         << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",a=" << thread_a->leaderHead->available_time << ",b=" << thread_a->leaderHead->block_size << ",f="  << thread_a->leaderHead->frequency << "}"
+         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",a=" << thread_b->leaderHead->available_time << ",b=" << thread_b->leaderHead->block_size << ",f="  << thread_b->leaderHead->frequency << "}"
+         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",a=" << thread_c->leaderHead->available_time << ",b=" << thread_c->leaderHead->block_size << ",f="  << thread_c->leaderHead->frequency << "}]";
     
+    write.v();
 }
 
 
@@ -96,8 +105,8 @@ int main()
 
     // p,d,c,act,t
     thread_a = new Periodic_Thread(RTConf(period_a * 1000, period_a * 1000, wcet_a * 1000, 0, iterations), &func_a);
-    thread_b = new Periodic_Thread(RTConf(period_b * 1000, period_a * 1000, wcet_b * 1000, 0, iterations), &func_b);
-    thread_c = new Periodic_Thread(RTConf(period_c * 1000, period_a * 1000, wcet_c * 1000, 0, iterations), &func_c);
+    thread_b = new Periodic_Thread(RTConf(period_b * 1000, period_b * 1000, wcet_b * 1000, 0, iterations), &func_b);
+    thread_c = new Periodic_Thread(RTConf(period_c * 1000, period_c * 1000, wcet_c * 1000, 0, iterations), &func_c);
 
     exec('M');
 

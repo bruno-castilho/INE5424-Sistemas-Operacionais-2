@@ -43,11 +43,12 @@ public:
             db<Init>(INF) << "Initializing the machine: " << endl;
             Machine::init();
 
-            CPU::smp_barrier(); // signalizes "machine ready" to other CPUs
+            CPU::smp_barrier();
 
         } else {
 
-
+            CPU::smp_barrier();
+            
             db<Init>(INF) << "Initializing the CPU: " << endl;
             CPU::init();
 

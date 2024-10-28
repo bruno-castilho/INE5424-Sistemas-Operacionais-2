@@ -19,30 +19,39 @@ Spin Thread::_lock;
 
 void Thread::update_blocks(Thread *running){
 
+
+    db<Thread>(TRC) << "Thread::update_blocks(running=" << running <<  "c=" << running->statistics().cycle_count <<")" << endl;
     int current_time = Alarm::elapsed();
     running->block_size = running->statistics().cycle_count;
-    running->avaliable_time = running->priority() - current_time;
-    running->frequency = ( running->avaliable_time > 0 ? ( running->block_size / running->avaliable_time ) * 1000000ULL : 0xFFFFFFFF) ;
+    running->available_time = running->priority() - current_time;
+    running->frequency = ( running->available_time > 0 ? ( running->block_size  * 1000000ULL / running->available_time )  : 0xFFFFFFFF);
     running->leaderHead = running;
+
+    unsigned int count = 1;
 
     Thread * previous_t = running;
     for (Queue::Iterator i = _scheduler.begin(); i != _scheduler.end(); ++i){
+        ++ count;
         Thread* current_t = i->object();
         Criterion c = current_t->criterion();
 
         if (c != IDLE && c != MAIN ){
             current_t->block_size = current_t->statistics().cycle_count;
-            current_t->avaliable_time = current_t->priority() - current_time - previous_t->leaderHead->avaliable_time;
-            current_t->frequency = ( current_t->avaliable_time > 0 ? ( running->block_size / running->avaliable_time ) * 1000000ULL : 0xFFFFFFFF);
+            current_t->available_time = current_t->priority() - current_time - previous_t->leaderHead->available_time;
+            current_t->frequency = ( current_t->available_time > 0 ? ( running->block_size * 1000000ULL  / running->available_time )   : 0xFFFFFFFF);
             current_t->leaderHead = current_t;
 
             if(current_t->frequency >= previous_t->leaderHead->frequency){
                 previous_t->leaderHead->block_size += current_t->block_size;
-                previous_t->leaderHead->avaliable_time += current_t->avaliable_time;
-                previous_t->leaderHead->frequency = ( previous_t->leaderHead->avaliable_time > 0 ? previous_t->leaderHead->block_size / previous_t->leaderHead->avaliable_time : 0xFFFFFFFFFFFFFFFF);
+                previous_t->leaderHead->available_time = previous_t->leaderHead->available_time + current_t->available_time;
+                previous_t->leaderHead->frequency = 
+                ( previous_t->leaderHead->available_time > 0 ? (previous_t->leaderHead->block_size * 1000000ULL  / previous_t->leaderHead->available_time)  : 0xFFFFFFFF) 
+                / 
+                (count < Traits<Machine>::CPUS ? count : Traits<Machine>::CPUS);
 
                 current_t->leaderHead = previous_t->leaderHead;
-            }
+
+            } else count = 1;
 
             previous_t = current_t;
         }
@@ -80,7 +89,6 @@ void Thread::constructor_epilogue(Log_Addr entry, unsigned int stack_size) {
 
     if(preemptive && (_state == READY) && (_link.rank() != IDLE))
         reschedule(_link.rank().queue());
-
 
 
     unlock();
@@ -389,38 +397,6 @@ void Thread::rescheduler(IC::Interrupt_Id i)
     unlock();
 }
 
-void Thread::deprioritize(Queue *q)
-{
-    assert(locked()); // locking handled by caller
-
-    if (priority_inversion_protocol == Traits<Build>::NONE)
-        return;
-
-    db<Thread>(TRC) << "Thread::deprioritize(q=" << q << ") [running=" << running() << "]" << endl;
-
-    for (Queue::Iterator i = q->begin(); i != q->end(); ++i)
-    {
-        Thread *t = i->object();
-        Criterion c = t->_natural_priority;
-        if (t->priority() != c)
-        {
-            if (t->_state == READY)
-            {
-                _scheduler.suspend(t);
-                t->_link.rank(c);
-                _scheduler.resume(t);
-            }
-            else if (t->state() == WAITING)
-            {
-                t->_waiting->remove(&t->_link);
-                t->_link.rank(c);
-                t->_waiting->insert(&t->_link);
-            }
-            else
-                t->_link.rank(c);
-        }
-    }
-}
 
 
 void Thread::time_slicer(IC::Interrupt_Id i)
@@ -472,8 +448,8 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
         // passing the volatile to switch_constext forces it to push prev onto the stack,
         // disrupting the context (it doesn't make a difference for Intel, which already saves
         // parameters on the stack anyway).
-        PMU::reset(3);
-        PMU::start(3);
+        PMU::reset(1);
+        PMU::start(1);
         CPU::switch_context(const_cast<Context **>(&prev->_context), next->_context);
 
         if(smp)

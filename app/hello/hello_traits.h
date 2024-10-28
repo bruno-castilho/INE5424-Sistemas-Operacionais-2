@@ -131,7 +131,7 @@ struct Traits<Thread> : public Traits<Build>
     static const int priority_inversion_protocol = NONE;
 
 
-    typedef IF<(CPUS > 1), Fixed_CPU, Priority>::Result Criterion;
+    typedef MyScheduler Criterion;
     static const unsigned int QUANTUM = 10000; // us
 };
 

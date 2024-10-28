@@ -8,8 +8,6 @@ __BEGIN_SYS
 
 volatile unsigned int Variable_Queue_Scheduler::_next_queue;
 
-FCFS::FCFS(int p, Tn & ... an): Priority((p == IDLE) ? IDLE : Alarm::elapsed()) {}
-
 inline RT_Common::Tick RT_Common::elapsed() { return Alarm::elapsed(); }
 
 RT_Common::Tick RT_Common::ticks(Microsecond time)
@@ -52,13 +50,10 @@ void RT_Common::handle(Event event)
 
         _statistics.thread_last_preemption = elapsed();
         _statistics.thread_execution_time += cpu_time;
-        //        if(_statistics.job_released) {
-        _statistics.job_utilization += cpu_time;
-        //        }
 
-        PMU::stop(3);
+        PMU::stop(1);
 
-        // _statistics.cycle_count = PMU::read(3); 
+        _statistics.cycle_count = PMU::read(1); 
     }
     if (periodic() && (event & JOB_RELEASE))
     {
@@ -101,6 +96,7 @@ void RT_Common::handle(Event event)
 template <typename... Tn>
 FCFS::FCFS(int p, Tn &...an) : Priority((p == IDLE) ? IDLE : RT_Common::elapsed()) {}
 
+
 EDF::EDF(Microsecond p, Microsecond d, Microsecond c) : RT_Common(int(elapsed() + ticks(d)), p, d, c) {}
 
 void EDF::handle(Event event)
@@ -112,7 +108,6 @@ void EDF::handle(Event event)
         _priority = elapsed() + _deadline;
 }
 
-LLF::LLF(Microsecond p, Microsecond d, Microsecond c) : RT_Common(int(elapsed() + ticks((d ? d : p) - c)), p, d, c) {}
 
 void LLF::handle(Event event)
 {
