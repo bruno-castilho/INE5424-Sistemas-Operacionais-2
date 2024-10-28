@@ -19,30 +19,39 @@ Spin Thread::_lock;
 
 void Thread::update_blocks(Thread *running){
 
+
+    db<Thread>(TRC) << "Thread::update_blocks(running=" << running <<  "c=" << running->statistics().cycle_count <<")" << endl;
     int current_time = Alarm::elapsed();
     running->block_size = running->statistics().cycle_count;
-    running->avaliable_time = running->priority() - current_time;
-    running->frequency = ( running->avaliable_time > 0 ? ( running->block_size / running->avaliable_time ) * 1000000ULL : 0xFFFFFFFF) ;
+    running->available_time = running->priority() - current_time;
+    running->frequency = ( running->available_time > 0 ? ( running->block_size  * 1000000ULL / running->available_time )  : 0xFFFFFFFF);
     running->leaderHead = running;
+
+    unsigned int count = 1;
 
     Thread * previous_t = running;
     for (Queue::Iterator i = _scheduler.begin(); i != _scheduler.end(); ++i){
+        ++ count;
         Thread* current_t = i->object();
         Criterion c = current_t->criterion();
 
         if (c != IDLE && c != MAIN ){
             current_t->block_size = current_t->statistics().cycle_count;
-            current_t->avaliable_time = current_t->priority() - current_time - previous_t->leaderHead->avaliable_time;
-            current_t->frequency = ( current_t->avaliable_time > 0 ? ( running->block_size / running->avaliable_time ) * 1000000ULL : 0xFFFFFFFF);
+            current_t->available_time = current_t->priority() - current_time - previous_t->leaderHead->available_time;
+            current_t->frequency = ( current_t->available_time > 0 ? ( running->block_size * 1000000ULL  / running->available_time )   : 0xFFFFFFFF);
             current_t->leaderHead = current_t;
 
             if(current_t->frequency >= previous_t->leaderHead->frequency){
                 previous_t->leaderHead->block_size += current_t->block_size;
-                previous_t->leaderHead->avaliable_time += current_t->avaliable_time;
-                previous_t->leaderHead->frequency = ( previous_t->leaderHead->avaliable_time > 0 ? previous_t->leaderHead->block_size / previous_t->leaderHead->avaliable_time : 0xFFFFFFFFFFFFFFFF);
+                previous_t->leaderHead->available_time = previous_t->leaderHead->available_time + current_t->available_time;
+                previous_t->leaderHead->frequency = 
+                ( previous_t->leaderHead->available_time > 0 ? (previous_t->leaderHead->block_size * 1000000ULL  / previous_t->leaderHead->available_time)  : 0xFFFFFFFF) 
+                / 
+                (count < Traits<Machine>::CPUS ? count : Traits<Machine>::CPUS);
 
                 current_t->leaderHead = previous_t->leaderHead;
-            }
+
+            } else count = 1;
 
             previous_t = current_t;
         }

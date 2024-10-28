@@ -73,7 +73,7 @@ public:
 
     Hertz frequency;
     unsigned long long block_size;
-    int avaliable_time;
+    Microsecond available_time;
     Thread *leaderHead;
 
 public:

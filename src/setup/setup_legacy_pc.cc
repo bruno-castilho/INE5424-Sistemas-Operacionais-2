@@ -188,12 +188,10 @@ Setup::Setup(char * boot_image)
         enable_paging();
     }
 
-    CPU::smp_barrier(si->bm.n_cpus);
     db<Setup>(INF) << "Setup::pc=" << CPU::pc() << endl;
     db<Setup>(INF) << "Setup::sp=" << CPU::sp() << endl;
     db<Setup>(INF) << "Setup::cr0=" << reinterpret_cast<void *>(CPU::cr0()) << endl;
     db<Setup>(INF) << "Setup::cr3=" << reinterpret_cast<void *>(CPU::cr3()) << endl;
-
 
     // SETUP ends here, so let's transfer control to the next stage (INIT or APP)
     call_next();

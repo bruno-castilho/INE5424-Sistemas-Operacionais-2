@@ -53,7 +53,7 @@ void RT_Common::handle(Event event)
 
         PMU::stop(1);
 
-        // _statistics.cycle_count = PMU::read(1); 
+        _statistics.cycle_count = PMU::read(1); 
     }
     if (periodic() && (event & JOB_RELEASE))
     {

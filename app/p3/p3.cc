@@ -54,22 +54,19 @@ inline void exec(char c, Milisecond time = 0)
     Milisecond elapsed = chrono.read() / 1000;
 
     write.p();
-    cout <<  "\nCPU={id="<<  CPU::id() << "}"
-        << endl;
-
-
-    cout <<  "\nFREQUENCY={maxf="<<  CPU::clock() 
+    cout <<  "\nCPU={id="<<  CPU::id()
+         << ",curf=" <<  CPU::clock() 
          << ",minf=" <<  CPU::min_clock() 
-         << ",curf=" << CPU::max_clock() 
-         << "}"
-         << endl;
-    
+         << ",maxf=" << CPU::max_clock() 
+         << "}" << endl;
+
+
 
     cout << "\n" << elapsed << " " << c << "-1"
-         << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",a=" << thread_a->leaderHead->avaliable_time << ",b=" << thread_a->leaderHead->block_size << ",f="  << thread_a->leaderHead->frequency << "}"
-         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",a=" << thread_b->leaderHead->avaliable_time << ",b=" << thread_b->leaderHead->block_size << ",f="  << thread_b->leaderHead->frequency << "}"
-         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",a=" << thread_c->leaderHead->avaliable_time << ",b=" << thread_c->leaderHead->block_size << ",f="  << thread_c->leaderHead->frequency << "}]"
-        << endl;
+         << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",a=" << thread_a->leaderHead->available_time << ",b=" << thread_a->leaderHead->block_size << ",f="  << thread_a->leaderHead->frequency << "}"
+         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",a=" << thread_b->leaderHead->available_time << ",b=" << thread_b->leaderHead->block_size << ",f="  << thread_b->leaderHead->frequency << "}"
+         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",a=" << thread_c->leaderHead->available_time << ",b=" << thread_c->leaderHead->block_size << ",f="  << thread_c->leaderHead->frequency << "}]";
+
 
     write.v();
 
@@ -78,14 +75,13 @@ inline void exec(char c, Milisecond time = 0)
             p = p + Point<long, 2>::trilaterate(p1, 123123, p2, 123123, p3, 123123);
     }
 
-    elapsed = chrono.read() / 1000;
-
     write.p();
+    elapsed = chrono.read() / 1000;
     cout << "\n" << elapsed << " " << c << "-2"
-         << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",a=" << thread_a->leaderHead->avaliable_time << ",b=" << thread_a->leaderHead->block_size << ",f="  << thread_a->leaderHead->frequency << "}"
-         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",a=" << thread_b->leaderHead->avaliable_time << ",b=" << thread_b->leaderHead->block_size << ",f="  << thread_b->leaderHead->frequency << "}"
-         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",a=" << thread_c->leaderHead->avaliable_time << ",b=" << thread_c->leaderHead->block_size << ",f="  << thread_c->leaderHead->frequency << "}]"
-         << endl;
+         << " [A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",a=" << thread_a->leaderHead->available_time << ",b=" << thread_a->leaderHead->block_size << ",f="  << thread_a->leaderHead->frequency << "}"
+         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",a=" << thread_b->leaderHead->available_time << ",b=" << thread_b->leaderHead->block_size << ",f="  << thread_b->leaderHead->frequency << "}"
+         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",a=" << thread_c->leaderHead->available_time << ",b=" << thread_c->leaderHead->block_size << ",f="  << thread_c->leaderHead->frequency << "}]";
+    
     write.v();
 }
 

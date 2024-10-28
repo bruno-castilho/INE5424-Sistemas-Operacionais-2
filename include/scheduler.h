@@ -376,12 +376,12 @@ public:
     template <typename ... Tn>
     MyScheduler(int p = APERIODIC)
     : EDF(p), Variable_Queue_Scheduler(((_priority == IDLE) || (_priority == MAIN)) ? current_queue() : 0) {
-        _statistics.cycle_count = 0xFFFFFFFFFFFFFFFF;
+        _statistics.cycle_count = 0xFFFFFFFF;
     }
 
     MyScheduler(Microsecond p, Microsecond d = SAME, Microsecond c = UNKNOWN, unsigned int cpu = ANY)
     : EDF(d, p, c), Variable_Queue_Scheduler((cpu != ANY) ? cpu / HEADS : ++_next_queue %= CPU::cores() / HEADS) {
-        _statistics.cycle_count = 0xFFFFFFFFFFFFFFFF;
+        _statistics.cycle_count = 0xFFFFFFFF;
     }
 
     using Variable_Queue_Scheduler::queue;
