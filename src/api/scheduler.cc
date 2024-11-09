@@ -53,7 +53,7 @@ void RT_Common::handle(Event event)
 
         PMU::stop(1);
 
-        _statistics.cycle_count = PMU::read(1); 
+        _statistics.current_cycle_count += PMU::read(1); 
     }
     if (periodic() && (event & JOB_RELEASE))
     {
@@ -68,11 +68,17 @@ void RT_Common::handle(Event event)
     if (periodic() && (event & JOB_FINISH))
     {
         db<Thread>(TRC) << "WAIT";
-
+         _statistics.current_cycle_count += PMU::read(1); 
+        _statistics.cycle_count = _statistics.current_cycle_count;
         _statistics.job_released = false;
         _statistics.job_finish = elapsed();
         _statistics.jobs_finished++;
         //        _statistics.job_utilization += elapsed() - _statistics.thread_last_dispatch;
+    }
+    if (periodic() && (event & JOB_RESTART))
+    {
+        db<Thread>(TRC) << "RESTART";
+        _statistics.current_cycle_count = 0;
     }
     if (event & COLLECT)
     {

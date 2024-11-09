@@ -61,7 +61,8 @@ public:
         ENTER = 1 << 2,
         LEAVE = 1 << 3,
         JOB_RELEASE = 1 << 4,
-        JOB_FINISH = 1 << 5
+        JOB_FINISH = 1 << 5,
+        JOB_RESTART = 1 << 6        
     };
 
     // Policy operations
@@ -98,6 +99,7 @@ public:
         Tick job_utilization;       // accumulated execution time (in ticks)
         unsigned int jobs_released; // number of jobs of a thread that were released so far (i.e. the number of times _alarm->v() was called by the Alarm::handler())
         unsigned int jobs_finished; // number of jobs of a thread that finished execution so far (i.e. the number of times alarm->p() was called at wait_next())
+        unsigned long long current_cycle_count;
         unsigned long long cycle_count;
     };
 
@@ -118,6 +120,7 @@ public:
         Tick job_utilization;       // accumulated execution time (in ticks)
         unsigned int jobs_released; // number of jobs of a thread that were released so far (i.e. the number of times _alarm->v() was called by the Alarm::handler())
         unsigned int jobs_finished; // number of jobs of a thread that finished execution so far (i.e. the number of times alarm->p() was called at wait_next())
+        unsigned long long current_cycle_count;
         unsigned long long cycle_count;
     };
 

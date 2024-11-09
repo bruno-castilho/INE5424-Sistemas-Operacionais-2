@@ -11,59 +11,62 @@ extern OStream kout;
 
 bool Thread::_not_booting;
 volatile unsigned int Thread::_thread_count;
+volatile Hertz Thread::_cpu_frequencies[Traits<Machine>::CPUS];
 
 Scheduler_Timer *Thread::_timer;
 Scheduler<Thread> Thread::_scheduler;
 Spin Thread::_lock;
 
 
-void Thread::update_blocks(Thread *running){
+void Thread::set_cpu_frequency(Hertz frequency, unsigned int cpu){
+    _cpu_frequencies[cpu] = frequency;
+}
 
+Hertz Thread::get_cpu_frequency(unsigned int cpu){
+    return _cpu_frequencies[cpu];
+}
 
-    db<Thread>(TRC) << "Thread::update_blocks(running=" << running <<  "c=" << running->statistics().cycle_count <<")" << endl;
-    int current_time = Alarm::elapsed();
-    running->block_size = running->statistics().cycle_count;
-    running->available_time = running->priority() - current_time;
-    running->frequency = ( running->available_time > 0 ? ( running->block_size  * 1000000ULL / running->available_time )  : 0xFFFFFFFF);
-    running->leaderHead = running;
+unsigned int Thread::select_cpu(){
+    unsigned int cpu_selected = 0;
+    Hertz current_freq = get_cpu_frequency(cpu_selected);
 
-    unsigned int count = 1;
-
-    Thread * previous_t = running;
-    for (Queue::Iterator i = _scheduler.begin(); i != _scheduler.end(); ++i){
-        ++ count;
-        Thread* current_t = i->object();
-        Criterion c = current_t->criterion();
-
-        if (c != IDLE && c != MAIN ){
-            current_t->block_size = current_t->statistics().cycle_count;
-            current_t->available_time = current_t->priority() - current_time - previous_t->leaderHead->available_time;
-            current_t->frequency = ( current_t->available_time > 0 ? ( running->block_size * 1000000ULL  / running->available_time )   : 0xFFFFFFFF);
-            current_t->leaderHead = current_t;
-
-            if(current_t->frequency >= previous_t->leaderHead->frequency){
-                previous_t->leaderHead->block_size += current_t->block_size;
-                previous_t->leaderHead->available_time = previous_t->leaderHead->available_time + current_t->available_time;
-                previous_t->leaderHead->frequency = 
-                ( previous_t->leaderHead->available_time > 0 ? (previous_t->leaderHead->block_size * 1000000ULL  / previous_t->leaderHead->available_time)  : 0xFFFFFFFF) 
-                / 
-                (count < Traits<Machine>::CPUS ? count : Traits<Machine>::CPUS);
-
-                current_t->leaderHead = previous_t->leaderHead;
-
-            } else count = 1;
-
-            previous_t = current_t;
+    for(unsigned int cpu = 1; cpu < Traits<Machine>::CPUS; cpu++){
+        Hertz freq = get_cpu_frequency(cpu);
+        if(freq < current_freq){
+            cpu_selected = cpu;
+            current_freq = freq;
         }
-
     }
-};
+
+    return cpu_selected;
+}
+
+void Thread::increase_frequency(){
+    frequency = statistics().cycle_count * 1000000ULL / criterion().period();
+    Hertz cpu_freq = get_cpu_frequency(criterion().queue());
+    
+    set_cpu_frequency(cpu_freq + frequency, criterion().queue());
+
+}
+
+void Thread::reduce_frequency(){
+    Hertz cpu_freq = get_cpu_frequency(criterion().queue());
+
+    set_cpu_frequency(cpu_freq - frequency, criterion().queue());
+}
+
+void Thread::update_frequency(){
+    Hertz cpu_freq = get_cpu_frequency(criterion().queue());
+    cpu_freq -= frequency;
+    frequency = statistics().cycle_count * 1000000ULL / criterion().period();
+
+    set_cpu_frequency(cpu_freq + frequency, criterion().queue());
+}
 
 void Thread::constructor_prologue(unsigned int stack_size)
 {
     lock();
     _thread_count++;
-
     _scheduler.insert(this);
     _stack = new (SYSTEM) char[stack_size];
 }
@@ -90,7 +93,9 @@ void Thread::constructor_epilogue(Log_Addr entry, unsigned int stack_size) {
     if(preemptive && (_state == READY) && (_link.rank() != IDLE))
         reschedule(_link.rank().queue());
 
-
+    if(_link.rank() != IDLE && _link.rank() != MAIN)
+        increase_frequency();
+        
     unlock();
 }
 
@@ -282,6 +287,7 @@ void Thread::exit(int status)
     prev->_state = FINISHING;
     *reinterpret_cast<int *>(prev->_stack) = status;
     prev->criterion().handle(Criterion::FINISH);
+    prev->reduce_frequency();
 
     _thread_count--;
 
@@ -398,7 +404,6 @@ void Thread::rescheduler(IC::Interrupt_Id i)
 }
 
 
-
 void Thread::time_slicer(IC::Interrupt_Id i)
 {
     lock();
@@ -428,10 +433,6 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
 
         next->_state = RUNNING;
 
-
-        Thread::update_blocks(next);
-        CPU::clock(next->frequency);
-
         db<Thread>(TRC) << "Thread::dispatch(prev=" << prev << ",next=" << next << ")" << endl;
         if (Traits<Thread>::debugged && Traits<Debug>::info)
         {
@@ -448,9 +449,11 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
         // passing the volatile to switch_constext forces it to push prev onto the stack,
         // disrupting the context (it doesn't make a difference for Intel, which already saves
         // parameters on the stack anyway).
+        CPU::switch_context(const_cast<Context **>(&prev->_context), next->_context);
+        
         PMU::reset(1);
         PMU::start(1);
-        CPU::switch_context(const_cast<Context **>(&prev->_context), next->_context);
+        CPU::clock(Thread::get_cpu_frequency(CPU::id()));
 
         if(smp)
             _lock.acquire();

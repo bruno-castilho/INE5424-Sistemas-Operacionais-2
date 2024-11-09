@@ -72,9 +72,6 @@ public:
     };
 
     Hertz frequency;
-    unsigned long long block_size;
-    Microsecond available_time;
-    Thread *leaderHead;
 
 public:
     template<typename ... Tn>
@@ -89,6 +86,9 @@ public:
 
     const volatile Criterion & priority() const { return _link.rank(); }
     void priority(Criterion p);
+    void increase_frequency();
+    void reduce_frequency();
+    void update_frequency();
 
     Task * task() const { return _task; }
 
@@ -100,6 +100,8 @@ public:
     static Thread * volatile self() { return running(); }
     static void yield();
     static void exit(int status = 0);
+
+    static Hertz get_cpu_frequency(unsigned int cpu);
 
 protected:
     void constructor_prologue(unsigned int stack_size);
@@ -142,7 +144,8 @@ protected:
                 i->object()->criterion().handle(event);
     }
 
-    static void update_blocks(Thread *prev);
+    static void set_cpu_frequency(Hertz frequency, unsigned int cpu);
+    static unsigned int select_cpu();
 
     static int idle();
 
@@ -162,6 +165,8 @@ protected:
 
     alignas (int) static bool _not_booting;
     static volatile unsigned int _thread_count;
+    static volatile Hertz _cpu_frequencies[Traits<Machine>::CPUS];
+
     static Scheduler_Timer * _timer;
     static Scheduler<Thread> _scheduler;
     static Spin _lock;
