@@ -53,7 +53,9 @@ void RT_Common::handle(Event event)
 
         PMU::stop(1);
 
-        _statistics.current_cycle_count += PMU::read(1); 
+        _statistics.current_instructions_retired += PMU::read(2);
+        _statistics.current_branch_misprediction += PMU::read(3);
+        _statistics.current_cache_miss += PMU::read(4);
     }
     if (periodic() && (event & JOB_RELEASE))
     {
@@ -68,8 +70,12 @@ void RT_Common::handle(Event event)
     if (periodic() && (event & JOB_FINISH))
     {
         db<Thread>(TRC) << "WAIT";
-         _statistics.current_cycle_count += PMU::read(1); 
-        _statistics.cycle_count = _statistics.current_cycle_count;
+        _statistics.current_instructions_retired += PMU::read(2);
+        _statistics.current_branch_misprediction += PMU::read(3);
+        _statistics.current_cache_miss += PMU::read(4);
+        _statistics.instructions_retired = _statistics.current_instructions_retired;
+        _statistics.branch_misprediction = _statistics.current_branch_misprediction;
+        _statistics.cache_miss = _statistics.current_cache_miss;
         _statistics.job_released = false;
         _statistics.job_finish = elapsed();
         _statistics.jobs_finished++;
@@ -78,7 +84,9 @@ void RT_Common::handle(Event event)
     if (periodic() && (event & JOB_RESTART))
     {
         db<Thread>(TRC) << "RESTART";
-        _statistics.current_cycle_count = 0;
+        _statistics.current_instructions_retired = 0;
+        _statistics.current_branch_misprediction = 0;
+        _statistics.current_cache_miss = 0;
     }
     if (event & COLLECT)
     {

@@ -42,25 +42,25 @@ unsigned int Thread::select_cpu(){
 }
 
 void Thread::increase_frequency(){
-    frequency = statistics().cycle_count * 1000000ULL / criterion().period();
-    Hertz cpu_freq = get_cpu_frequency(criterion().queue());
+    // frequency = statistics().cycle_count * 1000000ULL / criterion().period();
+    // Hertz cpu_freq = get_cpu_frequency(criterion().queue());
     
-    set_cpu_frequency(cpu_freq + frequency, criterion().queue());
+    // set_cpu_frequency(cpu_freq + frequency, criterion().queue());
 
 }
 
 void Thread::reduce_frequency(){
-    Hertz cpu_freq = get_cpu_frequency(criterion().queue());
+    // Hertz cpu_freq = get_cpu_frequency(criterion().queue());
 
-    set_cpu_frequency(cpu_freq - frequency, criterion().queue());
+    // set_cpu_frequency(cpu_freq - frequency, criterion().queue());
 }
 
 void Thread::update_frequency(){
-    Hertz cpu_freq = get_cpu_frequency(criterion().queue());
-    cpu_freq -= frequency;
-    frequency = statistics().cycle_count * 1000000ULL / criterion().period();
+    // Hertz cpu_freq = get_cpu_frequency(criterion().queue());
+    // cpu_freq -= frequency;
+    // frequency = statistics().cycle_count * 1000000ULL / criterion().period();
 
-    set_cpu_frequency(cpu_freq + frequency, criterion().queue());
+    // set_cpu_frequency(cpu_freq + frequency, criterion().queue());
 }
 
 void Thread::constructor_prologue(unsigned int stack_size)

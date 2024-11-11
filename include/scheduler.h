@@ -120,8 +120,15 @@ public:
         Tick job_utilization;       // accumulated execution time (in ticks)
         unsigned int jobs_released; // number of jobs of a thread that were released so far (i.e. the number of times _alarm->v() was called by the Alarm::handler())
         unsigned int jobs_finished; // number of jobs of a thread that finished execution so far (i.e. the number of times alarm->p() was called at wait_next())
-        unsigned long long current_cycle_count;
-        unsigned long long cycle_count;
+        
+        // P6 Statistics
+        unsigned long long instructions_retired;
+        unsigned long long branch_misprediction;
+        unsigned long long cache_miss;
+
+        unsigned long long current_instructions_retired;
+        unsigned long long current_branch_misprediction;
+        unsigned long long current_cache_miss;
     };
 
     typedef IF<Traits<System>::monitored, Real_Statistics, Dummy_Statistics>::Result Statistics;
@@ -379,12 +386,16 @@ public:
     template <typename ... Tn>
     MyScheduler(int p = APERIODIC)
     : EDF(p), Variable_Queue_Scheduler(((_priority == IDLE) || (_priority == MAIN)) ? current_queue() : 0) {
-        _statistics.cycle_count = 0xFFFFFFFF;
+        _statistics.instructions_retired = 0xFFFFFFFF;
+        _statistics.branch_misprediction = 0xFFFFFFFF;
+        _statistics.cache_miss = 0xFFFFFFFF;
     }
 
     MyScheduler(Microsecond p, Microsecond d = SAME, Microsecond c = UNKNOWN, unsigned int cpu = ANY)
     : EDF(d, p, c), Variable_Queue_Scheduler((cpu != ANY) ? cpu / HEADS : ++_next_queue %= CPU::cores() / HEADS) {
-        _statistics.cycle_count = 0xFFFFFFFF;
+        _statistics.instructions_retired = 0xFFFFFFFF;
+        _statistics.branch_misprediction = 0xFFFFFFFF;
+        _statistics.cache_miss = 0xFFFFFFFF;
     }
 
     using Variable_Queue_Scheduler::queue;

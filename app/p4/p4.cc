@@ -67,12 +67,12 @@ inline void exec(char c, Milisecond time = 0)
 
     write.p();
     cout << "\n" << elapsed << " " << c << "-1" << endl
-         <<  " A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",f="  << thread_a->frequency << ",c="  << thread_a->statistics().cycle_count << "}" << endl
-         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",f="  << thread_b->frequency << ",c="  << thread_b->statistics().cycle_count << "}" << endl
-         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",f="  << thread_c->frequency << ",c="  << thread_c->statistics().cycle_count << "}" << endl
-         <<  " D={i=" << thread_d->priority() << ",d=" << thread_d->criterion().deadline() / Alarm::frequency() << ",f="  << thread_d->frequency << ",c="  << thread_d->statistics().cycle_count << "}" << endl
-         <<  " E={i=" << thread_e->priority() << ",d=" << thread_e->criterion().deadline() / Alarm::frequency() << ",f="  << thread_e->frequency << ",c="  << thread_e->statistics().cycle_count << "}" << endl
-         <<  " F={i=" << thread_f->priority() << ",d=" << thread_f->criterion().deadline() / Alarm::frequency() << ",f="  << thread_f->frequency << ",c="  << thread_f->statistics().cycle_count << "}" << endl;
+         <<  " A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",f="  << thread_a->frequency << "}" << endl
+         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",f="  << thread_b->frequency << "}" << endl
+         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",f="  << thread_c->frequency << "}" << endl
+         <<  " D={i=" << thread_d->priority() << ",d=" << thread_d->criterion().deadline() / Alarm::frequency() << ",f="  << thread_d->frequency << "}" << endl
+         <<  " E={i=" << thread_e->priority() << ",d=" << thread_e->criterion().deadline() / Alarm::frequency() << ",f="  << thread_e->frequency << "}" << endl
+         <<  " F={i=" << thread_f->priority() << ",d=" << thread_f->criterion().deadline() / Alarm::frequency() << ",f="  << thread_f->frequency << "}" << endl;
 
     cout <<  "\nCPU={id="<<  CPU::id()
          << ",curf=" <<  CPU::clock() 
@@ -96,12 +96,12 @@ inline void exec(char c, Milisecond time = 0)
     write.p();
     elapsed = chrono.read() / 1000;
     cout << "\n" << elapsed << " " << c << "-2" << endl
-         <<  " A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",f="  << thread_a->frequency << ",c="  << thread_a->statistics().cycle_count << "}" << endl
-         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",f="  << thread_b->frequency << ",c="  << thread_b->statistics().cycle_count << "}" << endl
-         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",f="  << thread_c->frequency << ",c="  << thread_c->statistics().cycle_count << "}" << endl
-         <<  " D={i=" << thread_d->priority() << ",d=" << thread_d->criterion().deadline() / Alarm::frequency() << ",f="  << thread_d->frequency << ",c="  << thread_d->statistics().cycle_count << "}" << endl
-         <<  " E={i=" << thread_e->priority() << ",d=" << thread_e->criterion().deadline() / Alarm::frequency() << ",f="  << thread_e->frequency << ",c="  << thread_e->statistics().cycle_count << "}" << endl
-         <<  " F={i=" << thread_f->priority() << ",d=" << thread_f->criterion().deadline() / Alarm::frequency() << ",f="  << thread_f->frequency << ",c="  << thread_f->statistics().cycle_count << "}" << endl;
+         <<  " A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",f="  << thread_a->frequency << "}" << endl
+         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",f="  << thread_b->frequency << "}" << endl
+         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",f="  << thread_c->frequency << "}" << endl
+         <<  " D={i=" << thread_d->priority() << ",d=" << thread_d->criterion().deadline() / Alarm::frequency() << ",f="  << thread_d->frequency << "}" << endl
+         <<  " E={i=" << thread_e->priority() << ",d=" << thread_e->criterion().deadline() / Alarm::frequency() << ",f="  << thread_e->frequency << "}" << endl
+         <<  " F={i=" << thread_f->priority() << ",d=" << thread_f->criterion().deadline() / Alarm::frequency() << ",f="  << thread_f->frequency << "}" << endl;
     
     write.v();
 }
