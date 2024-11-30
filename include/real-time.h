@@ -62,7 +62,7 @@ protected:
 public:
     struct Configuration: public Thread::Configuration {
         Configuration(Microsecond p, Microsecond d = SAME, Microsecond c = UNKNOWN, Microsecond a = NOW, const unsigned int n = INFINITE, State s = READY, unsigned int ss = STACK_SIZE)
-        : Thread::Configuration(s, Criterion(p, d, c, select_cpu()), ss), activation(a), times(n) {}
+        : Thread::Configuration(s, Criterion(p, d, c, select_cpu_by_instructions_per_second()), ss), activation(a), times(n) {}
 
         Microsecond activation;
         unsigned int times;
@@ -98,7 +98,7 @@ public:
         db<Thread>(TRC) << "Thread::wait_next(this=" << t << ",times=" << t->_alarm.times() << ")" << endl;
 
         t->criterion().handle(Criterion::JOB_FINISH);
-        t->update_frequency();
+        t->update_cost();
 
         if(t->_alarm.times())
             t->_semaphore.p();

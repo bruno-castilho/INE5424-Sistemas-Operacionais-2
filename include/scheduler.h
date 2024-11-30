@@ -99,8 +99,6 @@ public:
         Tick job_utilization;       // accumulated execution time (in ticks)
         unsigned int jobs_released; // number of jobs of a thread that were released so far (i.e. the number of times _alarm->v() was called by the Alarm::handler())
         unsigned int jobs_finished; // number of jobs of a thread that finished execution so far (i.e. the number of times alarm->p() was called at wait_next())
-        unsigned long long current_cycle_count;
-        unsigned long long cycle_count;
     };
 
     struct Real_Statistics
@@ -388,14 +386,12 @@ public:
     : EDF(p), Variable_Queue_Scheduler(((_priority == IDLE) || (_priority == MAIN)) ? current_queue() : 0) {
         _statistics.instructions_retired = 0xFFFFFFFF;
         _statistics.branch_misprediction = 0xFFFFFFFF;
-        _statistics.cache_miss = 0xFFFFFFFF;
     }
 
     MyScheduler(Microsecond p, Microsecond d = SAME, Microsecond c = UNKNOWN, unsigned int cpu = ANY)
     : EDF(d, p, c), Variable_Queue_Scheduler((cpu != ANY) ? cpu / HEADS : ++_next_queue %= CPU::cores() / HEADS) {
         _statistics.instructions_retired = 0xFFFFFFFF;
         _statistics.branch_misprediction = 0xFFFFFFFF;
-        _statistics.cache_miss = 0xFFFFFFFF;
     }
 
     using Variable_Queue_Scheduler::queue;

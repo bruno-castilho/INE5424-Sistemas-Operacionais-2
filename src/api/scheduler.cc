@@ -51,8 +51,6 @@ void RT_Common::handle(Event event)
         _statistics.thread_last_preemption = elapsed();
         _statistics.thread_execution_time += cpu_time;
 
-        PMU::stop(1);
-
         _statistics.current_instructions_retired += PMU::read(2);
         _statistics.current_branch_misprediction += PMU::read(3);
         _statistics.current_cache_miss += PMU::read(4);

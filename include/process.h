@@ -6,6 +6,7 @@
 #include <architecture.h>
 #include <machine.h>
 #include <utility/queue.h>
+#include <utility/vector.h>
 #include <utility/handler.h>
 #include <scheduler.h>
 
@@ -71,7 +72,9 @@ public:
         unsigned int stack_size;
     };
 
-    Hertz frequency;
+    unsigned long long instructions_per_second;
+    unsigned long long branch_misprediction;
+
 
 public:
     template<typename ... Tn>
@@ -86,9 +89,9 @@ public:
 
     const volatile Criterion & priority() const { return _link.rank(); }
     void priority(Criterion p);
-    void increase_frequency();
-    void reduce_frequency();
-    void update_frequency();
+    void increase_cost();
+    void decrease_cost();
+    void update_cost();
 
     Task * task() const { return _task; }
 
@@ -101,7 +104,18 @@ public:
     static void yield();
     static void exit(int status = 0);
 
-    static Hertz get_cpu_frequency(unsigned int cpu);
+
+
+    static unsigned long long get_instructions_per_second(unsigned int cpu);
+    static unsigned long long get_instructions_per_second_required(unsigned int cpu);
+    static unsigned long long get_branch_misprediction(unsigned int cpu);
+    static unsigned int get_changes_cout();
+
+    static unsigned int get_thread_count(unsigned int cpu);
+    static bool  check_threads(unsigned int cpu);
+
+
+    
 
 protected:
     void constructor_prologue(unsigned int stack_size);
@@ -144,8 +158,10 @@ protected:
                 i->object()->criterion().handle(event);
     }
 
-    static void set_cpu_frequency(Hertz frequency, unsigned int cpu);
-    static unsigned int select_cpu();
+    static Hertz calculate_frequency();
+    static unsigned int select_cpu_by_instructions_per_second();
+    static unsigned int select_cpu_by_branch_missprediction();
+    static void change_thread_queue_if_necessary();
 
     static int idle();
 
@@ -165,7 +181,17 @@ protected:
 
     alignas (int) static bool _not_booting;
     static volatile unsigned int _thread_count;
-    static volatile Hertz _cpu_frequencies[Traits<Machine>::CPUS];
+    static volatile unsigned int _changes_cout;
+    static volatile unsigned int _cpu_thread_count[Traits<Machine>::CPUS];
+    static volatile Thread* _cpu_threads[Traits<Machine>::CPUS][Traits<Machine>::MAX_THREADS];
+    static volatile unsigned long long _cpu_last_dispatch[Traits<Machine>::CPUS];
+    static volatile unsigned long long _cpu_instructions_per_second[Traits<Machine>::CPUS];
+    static volatile unsigned long long _cpu_instructions_per_second_required[Traits<Machine>::CPUS];
+    static volatile unsigned long long _cpu_branch_missprediction[Traits<Machine>::CPUS];
+
+    static Mutex _cpu_instructions_per_second_required_mutex[Traits<Machine>::CPUS];
+    static Mutex _cpu_branch_missprediction_mutex[Traits<Machine>::CPUS];
+
 
     static Scheduler_Timer * _timer;
     static Scheduler<Thread> _scheduler;

@@ -67,12 +67,12 @@ inline void exec(char c, Milisecond time = 0)
 
     write.p();
     cout << "\n" << elapsed << " " << c << "-1" << endl
-         <<  " A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",f="  << thread_a->frequency << "}" << endl
-         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",f="  << thread_b->frequency << "}" << endl
-         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",f="  << thread_c->frequency << "}" << endl
-         <<  " D={i=" << thread_d->priority() << ",d=" << thread_d->criterion().deadline() / Alarm::frequency() << ",f="  << thread_d->frequency << "}" << endl
-         <<  " E={i=" << thread_e->priority() << ",d=" << thread_e->criterion().deadline() / Alarm::frequency() << ",f="  << thread_e->frequency << "}" << endl
-         <<  " F={i=" << thread_f->priority() << ",d=" << thread_f->criterion().deadline() / Alarm::frequency() << ",f="  << thread_f->frequency << "}" << endl;
+         <<  " A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",i="  << thread_a->statistics().instructions_retired << ",m="  << thread_a->statistics().branch_misprediction << "}" << endl
+         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",i="  << thread_b->statistics().instructions_retired << ",m="  << thread_b->statistics().branch_misprediction << "}" << endl
+         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",i="  << thread_c->statistics().instructions_retired << ",m="  << thread_c->statistics().branch_misprediction << "}" << endl
+         <<  " D={i=" << thread_d->priority() << ",d=" << thread_d->criterion().deadline() / Alarm::frequency() << ",i="  << thread_d->statistics().instructions_retired << ",m="  << thread_d->statistics().branch_misprediction << "}" << endl
+         <<  " E={i=" << thread_e->priority() << ",d=" << thread_e->criterion().deadline() / Alarm::frequency() << ",i="  << thread_e->statistics().instructions_retired << ",m="  << thread_e->statistics().branch_misprediction << "}" << endl
+         <<  " F={i=" << thread_f->priority() << ",d=" << thread_f->criterion().deadline() / Alarm::frequency() << ",i="  << thread_f->statistics().instructions_retired << ",m="  << thread_f->statistics().branch_misprediction << "}" << endl;
 
     cout <<  "\nCPU={id="<<  CPU::id()
          << ",curf=" <<  CPU::clock() 
@@ -81,9 +81,19 @@ inline void exec(char c, Milisecond time = 0)
          << "}" << endl;
 
 
-    cout << "_cpu_frequencies" << endl;
+    cout << "_cpu_instructions_per_second" << endl;
     for(unsigned int cpu = 0; cpu < Traits<Machine>::CPUS; cpu++){
-        cout << "{" << cpu << ": " << Periodic_Thread::get_cpu_frequency(cpu) << "}" << endl;
+        cout << "{" << cpu << ": " << Periodic_Thread::get_instructions_per_second(cpu) << "}" << endl;
+    }
+
+    cout << "_cpu_instructions_per_second_required" << endl;
+    for(unsigned int cpu = 0; cpu < Traits<Machine>::CPUS; cpu++){
+        cout << "{" << cpu << ": " << Periodic_Thread::get_instructions_per_second_required(cpu) << "}" << endl;
+    }
+
+    cout << "_cpu_branch_misprediction" << endl;
+    for(unsigned int cpu = 0; cpu < Traits<Machine>::CPUS; cpu++){
+        cout << "{" << cpu << ": " << Periodic_Thread::get_branch_misprediction(cpu) << "}" << endl;
     }
 
     write.v();
@@ -96,12 +106,12 @@ inline void exec(char c, Milisecond time = 0)
     write.p();
     elapsed = chrono.read() / 1000;
     cout << "\n" << elapsed << " " << c << "-2" << endl
-         <<  " A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",f="  << thread_a->frequency << "}" << endl
-         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",f="  << thread_b->frequency << "}" << endl
-         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",f="  << thread_c->frequency << "}" << endl
-         <<  " D={i=" << thread_d->priority() << ",d=" << thread_d->criterion().deadline() / Alarm::frequency() << ",f="  << thread_d->frequency << "}" << endl
-         <<  " E={i=" << thread_e->priority() << ",d=" << thread_e->criterion().deadline() / Alarm::frequency() << ",f="  << thread_e->frequency << "}" << endl
-         <<  " F={i=" << thread_f->priority() << ",d=" << thread_f->criterion().deadline() / Alarm::frequency() << ",f="  << thread_f->frequency << "}" << endl;
+         <<  " A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",i="  << thread_a->statistics().instructions_retired << ",m="  << thread_a->statistics().branch_misprediction << "}" << endl
+         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",i="  << thread_b->statistics().instructions_retired << ",m="  << thread_b->statistics().branch_misprediction << "}" << endl
+         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",i="  << thread_c->statistics().instructions_retired << ",m="  << thread_c->statistics().branch_misprediction << "}" << endl
+         <<  " D={i=" << thread_d->priority() << ",d=" << thread_d->criterion().deadline() / Alarm::frequency() << ",i="  << thread_d->statistics().instructions_retired << ",m="  << thread_d->statistics().branch_misprediction << "}" << endl
+         <<  " E={i=" << thread_e->priority() << ",d=" << thread_e->criterion().deadline() / Alarm::frequency() << ",i="  << thread_e->statistics().instructions_retired << ",m="  << thread_e->statistics().branch_misprediction << "}" << endl
+         <<  " F={i=" << thread_f->priority() << ",d=" << thread_f->criterion().deadline() / Alarm::frequency() << ",i="  << thread_f->statistics().instructions_retired << ",m="  << thread_f->statistics().branch_misprediction << "}" << endl;
     
     write.v();
 }
@@ -132,6 +142,7 @@ int main()
     thread_e = new Periodic_Thread(RTConf(period_e * 1000, period_e * 1000, wcet_e * 1000, 0, iterations), &func_e);
     thread_f = new Periodic_Thread(RTConf(period_f * 1000, period_f * 1000, wcet_f * 1000, 0, iterations), &func_f);
 
+
     exec('M');
 
     chrono.reset();
@@ -148,6 +159,16 @@ int main()
 
     exec('M');
 
+    for(unsigned int i = 0; i < Traits<Machine>::CPUS; i++){
+        cout << "cpu-" << i << " thread_count: " << Periodic_Thread::get_thread_count(i) << endl;
+    }
+
+    for(unsigned int i = 0; i < Traits<Machine>::CPUS; i++){
+
+        cout << "cpu-" << i << (Periodic_Thread::check_threads(i) ? " threads its clean" : " It's not clean") << endl;
+    }
+
+
     cout << "\n... done!" << endl;
     cout << "\n\nThread A exited with status \"" << char(status_a)
          << "\", thread B exited with status \"" << char(status_b)
@@ -161,6 +182,8 @@ int main()
          << Math::max(period_a, period_b, period_c) * iterations
          << " ms. The measured time was " << chrono.read() / 1000 <<" ms!" << endl;
 
+    cout << Periodic_Thread::get_changes_cout() << " threads were replaced." << endl;
+         
     cout << "I'm also done, bye!" << endl;
 
     return 0;

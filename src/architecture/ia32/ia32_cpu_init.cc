@@ -31,7 +31,7 @@ void CPU::init()
         PMU::config(3, 15);
         PMU::start(3);
         PMU::reset(3);
-        PMU::config(4, 30); // L3_CACHE_MISSES
+        PMU::config(4, 30);
         PMU::start(4);
         PMU::reset(4);
     }
