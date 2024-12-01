@@ -109,10 +109,9 @@ public:
     static unsigned long long get_instructions_per_second(unsigned int cpu);
     static unsigned long long get_instructions_per_second_required(unsigned int cpu);
     static unsigned long long get_branch_misprediction(unsigned int cpu);
-    static unsigned int get_changes_cout();
+    static unsigned int get_changes_count();
 
     static unsigned int get_thread_count(unsigned int cpu);
-    static bool  check_threads(unsigned int cpu);
 
 
     
@@ -181,17 +180,13 @@ protected:
 
     alignas (int) static bool _not_booting;
     static volatile unsigned int _thread_count;
-    static volatile unsigned int _changes_cout;
+    static volatile unsigned int _changes_count;
     static volatile unsigned int _cpu_thread_count[Traits<Machine>::CPUS];
     static volatile Thread* _cpu_threads[Traits<Machine>::CPUS][Traits<Machine>::MAX_THREADS];
     static volatile unsigned long long _cpu_last_dispatch[Traits<Machine>::CPUS];
     static volatile unsigned long long _cpu_instructions_per_second[Traits<Machine>::CPUS];
     static volatile unsigned long long _cpu_instructions_per_second_required[Traits<Machine>::CPUS];
     static volatile unsigned long long _cpu_branch_missprediction[Traits<Machine>::CPUS];
-
-    static Mutex _cpu_instructions_per_second_required_mutex[Traits<Machine>::CPUS];
-    static Mutex _cpu_branch_missprediction_mutex[Traits<Machine>::CPUS];
-
 
     static Scheduler_Timer * _timer;
     static Scheduler<Thread> _scheduler;

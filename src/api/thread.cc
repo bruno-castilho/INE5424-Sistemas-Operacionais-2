@@ -11,7 +11,7 @@ extern OStream kout;
 
 bool Thread::_not_booting;
 volatile unsigned int Thread::_thread_count;
-volatile unsigned int Thread::_changes_cout;
+volatile unsigned int Thread::_changes_count;
 volatile unsigned int Thread::_cpu_thread_count[Traits<Machine>::CPUS];
 volatile Thread* Thread::_cpu_threads[Traits<Machine>::CPUS][Traits<Machine>::MAX_THREADS];
 volatile unsigned long long Thread::_cpu_last_dispatch[Traits<Machine>::CPUS];
@@ -20,14 +20,9 @@ volatile unsigned long long  Thread::_cpu_instructions_per_second[Traits<Machine
 volatile unsigned long long  Thread::_cpu_instructions_per_second_required[Traits<Machine>::CPUS];
 volatile unsigned long long  Thread::_cpu_branch_missprediction[Traits<Machine>::CPUS];
 
-Mutex Thread::_cpu_instructions_per_second_required_mutex[Traits<Machine>::CPUS];
-Mutex Thread::_cpu_branch_missprediction_mutex[Traits<Machine>::CPUS];
-
-
 Scheduler_Timer *Thread::_timer;
 Scheduler<Thread> Thread::_scheduler;
 Spin Thread::_lock;
-
 
 
 void Thread::change_thread_queue_if_necessary(){
@@ -46,7 +41,7 @@ void Thread::change_thread_queue_if_necessary(){
             t->decrease_cost();
             t->criterion().queue(cpu_selected);
             t->increase_cost();
-            _changes_cout++;
+            _changes_count++;
             return;
         }
     }
@@ -60,8 +55,8 @@ Hertz Thread::calculate_frequency(){
     return (instructions_per_second ==  0 ? current_frequency : current_frequency * instructions_per_second_required / instructions_per_second);
 }
 
-unsigned int Thread::get_changes_cout(){
-    return _changes_cout;
+unsigned int Thread::get_changes_count(){
+    return _changes_count;
 }
 
 unsigned long long Thread::get_instructions_per_second(unsigned int cpu){
@@ -78,14 +73,6 @@ unsigned long long Thread::get_branch_misprediction(unsigned int cpu){
 
 unsigned int Thread::get_thread_count(unsigned int cpu){
     return _cpu_thread_count[cpu];
-}
-
-bool  Thread::check_threads(unsigned int cpu){
-    bool its_clean = true;
-    for(unsigned int j = 0; j < Traits<Machine>::MAX_THREADS; j++){
-        if(_cpu_threads[cpu][j] != nullptr) its_clean = false;
-    }
-    return its_clean;
 }
 
 unsigned int Thread::select_cpu_by_instructions_per_second(){

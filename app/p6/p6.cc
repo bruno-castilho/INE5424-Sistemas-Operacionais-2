@@ -14,12 +14,6 @@ const Milisecond period_c = 60;
 const Milisecond period_d = 150;
 const Milisecond period_e = 180;
 const Milisecond period_f = 200;
-const Milisecond wcet_a = 50;
-const Milisecond wcet_b = 20;
-const Milisecond wcet_c = 10;
-const Milisecond wcet_d = 20;
-const Milisecond wcet_e = 10;
-const Milisecond wcet_f = 50;
 
 int func_a();
 int func_b();
@@ -61,12 +55,12 @@ void callibrate()
     base_loop_count /= 1000;
 }
 
-inline void exec(char c, Milisecond time = 0)
+inline void exec(char c, int i = 0)
 {
     Milisecond elapsed = chrono.read() / 1000;
 
     write.p();
-    cout << "\n" << elapsed << " " << c << "-1" << endl
+    cout << "\n" << elapsed << " " << c << "-" << i << endl
          <<  " A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",i="  << thread_a->statistics().instructions_retired << ",m="  << thread_a->statistics().branch_misprediction << "}" << endl
          <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",i="  << thread_b->statistics().instructions_retired << ",m="  << thread_b->statistics().branch_misprediction << "}" << endl
          <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",i="  << thread_c->statistics().instructions_retired << ",m="  << thread_c->statistics().branch_misprediction << "}" << endl
@@ -97,34 +91,12 @@ inline void exec(char c, Milisecond time = 0)
     }
 
     write.v();
-
-    for(unsigned long i = 0; i < time; i++)
-        for(unsigned long j = 0; j < base_loop_count; j++) {
-            p = p + Point<long, 2>::trilaterate(p1, 123123, p2, 123123, p3, 123123);
-    }
-
-    write.p();
-    elapsed = chrono.read() / 1000;
-    cout << "\n" << elapsed << " " << c << "-2" << endl
-         <<  " A={i=" << thread_a->priority() << ",d=" << thread_a->criterion().deadline() / Alarm::frequency() << ",i="  << thread_a->statistics().instructions_retired << ",m="  << thread_a->statistics().branch_misprediction << "}" << endl
-         <<  " B={i=" << thread_b->priority() << ",d=" << thread_b->criterion().deadline() / Alarm::frequency() << ",i="  << thread_b->statistics().instructions_retired << ",m="  << thread_b->statistics().branch_misprediction << "}" << endl
-         <<  " C={i=" << thread_c->priority() << ",d=" << thread_c->criterion().deadline() / Alarm::frequency() << ",i="  << thread_c->statistics().instructions_retired << ",m="  << thread_c->statistics().branch_misprediction << "}" << endl
-         <<  " D={i=" << thread_d->priority() << ",d=" << thread_d->criterion().deadline() / Alarm::frequency() << ",i="  << thread_d->statistics().instructions_retired << ",m="  << thread_d->statistics().branch_misprediction << "}" << endl
-         <<  " E={i=" << thread_e->priority() << ",d=" << thread_e->criterion().deadline() / Alarm::frequency() << ",i="  << thread_e->statistics().instructions_retired << ",m="  << thread_e->statistics().branch_misprediction << "}" << endl
-         <<  " F={i=" << thread_f->priority() << ",d=" << thread_f->criterion().deadline() / Alarm::frequency() << ",i="  << thread_f->statistics().instructions_retired << ",m="  << thread_f->statistics().branch_misprediction << "}" << endl;
-    
-    write.v();
 }
 
 
 int main()
 {
     cout << "Periodic Thread Component Test" << endl;
-
-    cout << "\nThis test consists in creating three periodic threads as follows:" << endl;
-    cout << "- Every " << period_a << "ms, thread A executes \"a\" for " << wcet_a << "ms;" << endl;
-    cout << "- Every " << period_b << "ms, thread B executes \"b\" for " << wcet_b << "ms;" << endl;
-    cout << "- Every " << period_c << "ms, thread C executes \"c\" for " << wcet_c << "ms;" << endl;
 
     cout << "\nCallibrating the duration of the base execution loop: ";
     callibrate();
@@ -135,12 +107,12 @@ int main()
 
 
     // p,d,c,act,t
-    thread_a = new Periodic_Thread(RTConf(period_a * 1000, period_a * 1000, wcet_a * 1000, 0, iterations), &func_a);
-    thread_b = new Periodic_Thread(RTConf(period_b * 1000, period_b * 1000, wcet_b * 1000, 0, iterations), &func_b);
-    thread_c = new Periodic_Thread(RTConf(period_c * 1000, period_c * 1000, wcet_c * 1000, 0, iterations), &func_c);
-    thread_d = new Periodic_Thread(RTConf(period_d * 1000, period_d * 1000, wcet_d * 1000, 0, iterations), &func_d);
-    thread_e = new Periodic_Thread(RTConf(period_e * 1000, period_e * 1000, wcet_e * 1000, 0, iterations), &func_e);
-    thread_f = new Periodic_Thread(RTConf(period_f * 1000, period_f * 1000, wcet_f * 1000, 0, iterations), &func_f);
+    thread_a = new Periodic_Thread(RTConf(period_a * 1000, period_a * 1000, 0, 0, iterations), &func_a);
+    thread_b = new Periodic_Thread(RTConf(period_b * 1000, period_b * 1000, 0, 0, iterations), &func_b);
+    thread_c = new Periodic_Thread(RTConf(period_c * 1000, period_c * 1000, 0, 0, iterations), &func_c);
+    thread_d = new Periodic_Thread(RTConf(period_d * 1000, period_d * 1000, 0, 0, iterations), &func_d);
+    thread_e = new Periodic_Thread(RTConf(period_e * 1000, period_e * 1000, 0, 0, iterations), &func_e);
+    thread_f = new Periodic_Thread(RTConf(period_f * 1000, period_f * 1000, 0, 0, iterations), &func_f);
 
 
     exec('M');
@@ -159,16 +131,6 @@ int main()
 
     exec('M');
 
-    for(unsigned int i = 0; i < Traits<Machine>::CPUS; i++){
-        cout << "cpu-" << i << " thread_count: " << Periodic_Thread::get_thread_count(i) << endl;
-    }
-
-    for(unsigned int i = 0; i < Traits<Machine>::CPUS; i++){
-
-        cout << "cpu-" << i << (Periodic_Thread::check_threads(i) ? " threads its clean" : " It's not clean") << endl;
-    }
-
-
     cout << "\n... done!" << endl;
     cout << "\n\nThread A exited with status \"" << char(status_a)
          << "\", thread B exited with status \"" << char(status_b)
@@ -182,7 +144,7 @@ int main()
          << Math::max(period_a, period_b, period_c) * iterations
          << " ms. The measured time was " << chrono.read() / 1000 <<" ms!" << endl;
 
-    cout << Periodic_Thread::get_changes_cout() << " threads were replaced." << endl;
+    cout << Periodic_Thread::get_changes_count() << " threads were replaced." << endl;
          
     cout << "I'm also done, bye!" << endl;
 
@@ -276,7 +238,7 @@ int func_a()
     exec('A');
 
     do {
-        exec('a', wcet_a);
+        exec('a', 1);
 
         int* array = new int[2000];
         array[0] = 3;
@@ -289,6 +251,8 @@ int func_a()
 
         delete[] array;
 
+        exec('a', 2);
+
     } while (Periodic_Thread::wait_next());
     exec('A');
 
@@ -300,7 +264,7 @@ int func_b()
     exec('B');
 
     do {
-        exec('b', wcet_b);
+        exec('b', 1);
 
         int* array = new int[2500];
         array[0] = 8;
@@ -312,6 +276,8 @@ int func_b()
         binarySearch(array, 0, 2499, 835);
 
         delete[] array;
+
+        exec('b', 2);
     } while (Periodic_Thread::wait_next());
 
     exec('B');
@@ -324,7 +290,7 @@ int func_c()
     exec('C');
 
     do {
-        exec('c', wcet_c);
+        exec('c', 1);
 
         int* array = new int[800];
         array[0] = 5;
@@ -336,6 +302,8 @@ int func_c()
         binarySearch(array, 0, 799, 391);
 
         delete[] array;
+
+        exec('c', 2);
     } while (Periodic_Thread::wait_next());
 
     exec('C');
@@ -348,7 +316,7 @@ int func_d()
     exec('D');
 
     do {
-        exec('d', wcet_d);
+        exec('d', 1);
 
         int* array = new int[1400];
         array[0] = 3;
@@ -360,6 +328,8 @@ int func_d()
         binarySearch(array, 0, 1399, 795);
 
         delete[] array;
+
+        exec('d', 2);
     } while (Periodic_Thread::wait_next());
 
     exec('D');
@@ -372,7 +342,7 @@ int func_e()
     exec('E');
 
     do {
-        exec('e', wcet_e);
+        exec('e', 1);
 
         int* array = new int[3400];
         array[0] = 3;
@@ -384,6 +354,8 @@ int func_e()
         binarySearch(array, 0, 3399, 543);
 
         delete[] array;
+
+        exec('e', 2);
     } while (Periodic_Thread::wait_next());
 
     exec('E');
@@ -397,7 +369,7 @@ int func_f()
     exec('F');
 
     do {
-        exec('f', wcet_f);
+        exec('f', 1);
 
         int* array = new int[1000];
         array[0] = 3;
@@ -409,6 +381,8 @@ int func_f()
         binarySearch(array, 0, 999, 371);
 
         delete[] array;
+
+        exec('f', 2);
     } while (Periodic_Thread::wait_next());
 
     exec('F');
