@@ -1,9 +1,9 @@
 // EPOS Thread Implementation
-
 #include <machine.h>
 #include <system.h>
 #include <time.h>
 #include <process.h>
+#include <synchronizer.h>
 
 __BEGIN_SYS
 
@@ -11,59 +11,144 @@ extern OStream kout;
 
 bool Thread::_not_booting;
 volatile unsigned int Thread::_thread_count;
+volatile unsigned int Thread::_changes_count;
+volatile unsigned int Thread::_cpu_thread_count[Traits<Machine>::CPUS];
+volatile Thread* Thread::_cpu_threads[Traits<Machine>::CPUS][Traits<Machine>::MAX_THREADS];
+volatile unsigned long long Thread::_cpu_last_dispatch[Traits<Machine>::CPUS];
+volatile unsigned long long  Thread::_cpu_instructions_per_second[Traits<Machine>::CPUS];
+
+volatile unsigned long long  Thread::_cpu_instructions_per_second_required[Traits<Machine>::CPUS];
+volatile unsigned long long  Thread::_cpu_branch_missprediction[Traits<Machine>::CPUS];
 
 Scheduler_Timer *Thread::_timer;
 Scheduler<Thread> Thread::_scheduler;
 Spin Thread::_lock;
 
 
-void Thread::update_blocks(Thread *running){
+void Thread::change_thread_queue_if_necessary(){
+    db<Thread>(TRC) << "Thread::change_thread_queue_if_necessary(cpu=" << CPU::id() << ",this=" << running() << ")" << endl;
+    unsigned int cpu_selected = select_cpu_by_branch_missprediction();
+    unsigned long long cpu_selected_branch_missprediction = _cpu_branch_missprediction[cpu_selected];
 
+    unsigned int current_cpu = CPU::id();
 
-    db<Thread>(TRC) << "Thread::update_blocks(running=" << running <<  "c=" << running->statistics().cycle_count <<")" << endl;
-    int current_time = Alarm::elapsed();
-    running->block_size = running->statistics().cycle_count;
-    running->available_time = running->priority() - current_time;
-    running->frequency = ( running->available_time > 0 ? ( running->block_size  * 1000000ULL / running->available_time )  : 0xFFFFFFFF);
-    running->leaderHead = running;
+    if(cpu_selected == current_cpu) return;
 
-    unsigned int count = 1;
-
-    Thread * previous_t = running;
-    for (Queue::Iterator i = _scheduler.begin(); i != _scheduler.end(); ++i){
-        ++ count;
-        Thread* current_t = i->object();
-        Criterion c = current_t->criterion();
-
-        if (c != IDLE && c != MAIN ){
-            current_t->block_size = current_t->statistics().cycle_count;
-            current_t->available_time = current_t->priority() - current_time - previous_t->leaderHead->available_time;
-            current_t->frequency = ( current_t->available_time > 0 ? ( running->block_size * 1000000ULL  / running->available_time )   : 0xFFFFFFFF);
-            current_t->leaderHead = current_t;
-
-            if(current_t->frequency >= previous_t->leaderHead->frequency){
-                previous_t->leaderHead->block_size += current_t->block_size;
-                previous_t->leaderHead->available_time = previous_t->leaderHead->available_time + current_t->available_time;
-                previous_t->leaderHead->frequency = 
-                ( previous_t->leaderHead->available_time > 0 ? (previous_t->leaderHead->block_size * 1000000ULL  / previous_t->leaderHead->available_time)  : 0xFFFFFFFF) 
-                / 
-                (count < Traits<Machine>::CPUS ? count : Traits<Machine>::CPUS);
-
-                current_t->leaderHead = previous_t->leaderHead;
-
-            } else count = 1;
-
-            previous_t = current_t;
+    for(unsigned int i = 0; i < _cpu_thread_count[current_cpu]; i++){
+        Thread* t = const_cast<Thread* volatile>(_cpu_threads[current_cpu][i]);
+        unsigned long long cpu_selected_branch_missprediction_predict = cpu_selected_branch_missprediction + t->statistics().branch_misprediction;
+        if(cpu_selected_branch_missprediction_predict < _cpu_branch_missprediction[current_cpu]){
+            t->decrease_cost();
+            t->criterion().queue(cpu_selected);
+            t->increase_cost();
+            _changes_count++;
+            return;
         }
-
     }
-};
+}
+
+Hertz Thread::calculate_frequency(){
+    Hertz current_frequency = CPU::clock();
+    unsigned long long instructions_per_second = _cpu_instructions_per_second[CPU::id()];
+    unsigned long long instructions_per_second_required = _cpu_instructions_per_second_required[CPU::id()];
+
+    return (instructions_per_second ==  0 ? current_frequency : current_frequency * instructions_per_second_required / instructions_per_second);
+}
+
+unsigned int Thread::get_changes_count(){
+    return _changes_count;
+}
+
+unsigned long long Thread::get_instructions_per_second(unsigned int cpu){
+    return _cpu_instructions_per_second[cpu];
+}
+
+unsigned long long Thread::get_instructions_per_second_required(unsigned int cpu){
+    return _cpu_instructions_per_second_required[cpu];
+}
+
+unsigned long long Thread::get_branch_misprediction(unsigned int cpu){
+    return _cpu_branch_missprediction[cpu];
+}
+
+unsigned int Thread::get_thread_count(unsigned int cpu){
+    return _cpu_thread_count[cpu];
+}
+
+unsigned int Thread::select_cpu_by_instructions_per_second(){
+    unsigned int cpu_selected = 0;
+    unsigned long long current_is = _cpu_instructions_per_second_required[cpu_selected];
+
+    for(unsigned int cpu = 1; cpu < Traits<Machine>::CPUS; cpu++){
+        unsigned long long is = _cpu_instructions_per_second_required[cpu];
+        if(is < current_is){
+            cpu_selected = cpu;
+            current_is = is;
+        }
+    }
+
+    return cpu_selected;
+}
+
+unsigned int Thread::select_cpu_by_branch_missprediction(){
+    unsigned int cpu_selected = 0;
+    unsigned long long current_is = _cpu_branch_missprediction[cpu_selected];
+
+    for(unsigned int cpu = 1; cpu < Traits<Machine>::CPUS; cpu++){
+        unsigned long long is = _cpu_branch_missprediction[cpu];
+        if(is < current_is){
+            cpu_selected = cpu;
+            current_is = is;
+        }
+    }
+
+    return cpu_selected;
+}
+
+void Thread::increase_cost(){
+    instructions_per_second = statistics().instructions_retired * 1000000ULL / criterion().period();
+    branch_misprediction = statistics().branch_misprediction;
+
+    _cpu_instructions_per_second_required[criterion().queue()] += instructions_per_second;
+    _cpu_branch_missprediction[criterion().queue()] += branch_misprediction;
+
+    _cpu_threads[this->criterion().queue()][_cpu_thread_count[this->criterion().queue()]] = this;
+    _cpu_thread_count[this->criterion().queue()] += 1;
+
+}
+
+void Thread::decrease_cost(){
+    _cpu_instructions_per_second_required[criterion().queue()] -= instructions_per_second;
+    _cpu_branch_missprediction[criterion().queue()] -= branch_misprediction;
+
+    for(unsigned int i = 0; i < _cpu_thread_count[criterion().queue()]; i++){
+        if(_cpu_threads[criterion().queue()][i] == this){
+            _cpu_threads[criterion().queue()][i] = nullptr;
+            for(unsigned int j = i + 1; j < _cpu_thread_count[criterion().queue()]; j++){
+                _cpu_threads[criterion().queue()][j-1] = _cpu_threads[criterion().queue()][j];
+                _cpu_threads[criterion().queue()][j] = nullptr;
+            }
+            _cpu_thread_count[criterion().queue()] -= 1;
+            break;
+        }
+    }
+}
+
+void Thread::update_cost(){
+    _cpu_instructions_per_second_required[criterion().queue()] -= instructions_per_second;
+     _cpu_branch_missprediction[criterion().queue()] -= branch_misprediction;
+
+    instructions_per_second = statistics().instructions_retired * 1000000ULL / criterion().period();
+    branch_misprediction = statistics().branch_misprediction;
+
+    _cpu_instructions_per_second_required[criterion().queue()] += instructions_per_second;
+    _cpu_branch_missprediction[criterion().queue()] += branch_misprediction;
+}
 
 void Thread::constructor_prologue(unsigned int stack_size)
 {
     lock();
     _thread_count++;
-
     _scheduler.insert(this);
     _stack = new (SYSTEM) char[stack_size];
 }
@@ -90,6 +175,9 @@ void Thread::constructor_epilogue(Log_Addr entry, unsigned int stack_size) {
     if(preemptive && (_state == READY) && (_link.rank() != IDLE))
         reschedule(_link.rank().queue());
 
+    if(_link.rank() != IDLE && _link.rank() != MAIN)
+        increase_cost();
+    
 
     unlock();
 }
@@ -282,6 +370,7 @@ void Thread::exit(int status)
     prev->_state = FINISHING;
     *reinterpret_cast<int *>(prev->_stack) = status;
     prev->criterion().handle(Criterion::FINISH);
+    prev->decrease_cost();
 
     _thread_count--;
 
@@ -363,7 +452,6 @@ void Thread::wakeup_all(Queue *q)
     }
 }
 
-
 void Thread::reschedule()
 
 {
@@ -376,7 +464,6 @@ void Thread::reschedule()
 
     dispatch(prev, next);
 }
-
 
 void Thread::reschedule(unsigned int cpu)
 {
@@ -397,8 +484,6 @@ void Thread::rescheduler(IC::Interrupt_Id i)
     unlock();
 }
 
-
-
 void Thread::time_slicer(IC::Interrupt_Id i)
 {
     lock();
@@ -415,6 +500,20 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
 
     if (prev != next)
     {
+
+        PMU::stop(2);
+        PMU::stop(3);
+        PMU::stop(4);
+        
+        unsigned long long current_time = Alarm::elapsed();
+        unsigned long long instructions = PMU::read(2);
+
+        if(_cpu_last_dispatch[CPU::id()] != 0){
+            unsigned long long time_between_dispatch = current_time - _cpu_last_dispatch[CPU::id()];
+            _cpu_instructions_per_second[CPU::id()] = time_between_dispatch != 0 ? instructions * (1000000ULL / time_between_dispatch) : instructions * 1000000ULL;
+        }
+        _cpu_last_dispatch[CPU::id()] = current_time;
+        
         if (Criterion::dynamic)
         {
             prev->criterion().handle(Criterion::CHARGE | Criterion::LEAVE);
@@ -428,10 +527,6 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
 
         next->_state = RUNNING;
 
-
-        Thread::update_blocks(next);
-        CPU::clock(next->frequency);
-
         db<Thread>(TRC) << "Thread::dispatch(prev=" << prev << ",next=" << next << ")" << endl;
         if (Traits<Thread>::debugged && Traits<Debug>::info)
         {
@@ -443,13 +538,22 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
         if(smp)
             _lock.release();
 
+        
+
+        CPU::clock(Thread::calculate_frequency());
+        
+        PMU::reset(2);
+        PMU::reset(3);
+        PMU::reset(4);
+        PMU::start(2);
+        PMU::start(3);
+        PMU::start(4);
+
         // The non-volatile pointer to volatile pointer to a non-volatile context is correct
         // and necessary because of context switches, but here, we are locked() and
         // passing the volatile to switch_constext forces it to push prev onto the stack,
         // disrupting the context (it doesn't make a difference for Intel, which already saves
         // parameters on the stack anyway).
-        PMU::reset(1);
-        PMU::start(1);
         CPU::switch_context(const_cast<Context **>(&prev->_context), next->_context);
 
         if(smp)
@@ -460,7 +564,7 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
 int Thread::idle()
 {
     db<Thread>(TRC) << "Thread::idle(cpu=" << CPU::id() << ",this=" << running() << ")" << endl;
-
+    change_thread_queue_if_necessary();
     while(_thread_count > CPU::cores()) { // someone else besides idles
         if(Traits<Thread>::trace_idle)
             db<Thread>(TRC) << "Thread::idle(cpu=" << CPU::id() << ",this=" << running() << ")" << endl;

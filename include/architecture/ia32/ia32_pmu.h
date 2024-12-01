@@ -688,7 +688,7 @@ public:
         if(channel < FIXED)
             wrmsr(FIXED_CTR0 + channel, 0);
         else
-            wrmsr(EVTSEL0 + channel - FIXED, 0);
+            wrmsr(PMC_BASE_ADDR + channel - FIXED, 0);
     }
 
     static bool overflow(Channel channel) {
