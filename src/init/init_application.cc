@@ -31,7 +31,7 @@ public:
         if(Traits<System>::multiheap) { // heap in data segment arranged by SETUP
             db<Init>(INF) << endl;
             char * heap = (MMU::align_page(&_end) >= CPU::Log_Addr(Memory_Map::APP_DATA)) ? MMU::align_page(&_end) : CPU::Log_Addr(Memory_Map::APP_DATA); // ld is eliminating the data segment in some compilations, particularly for RISC-V, and placing _end in the code segment
-            Application::_heap = new (&Application::_preheap[0]) Application_Heap(heap, HEAP_SIZE);
+            Application::_heap = new (&Application::_preheap[0]) Heap(heap, HEAP_SIZE);
         } else {
             db<Init>(INF) << "adding all free memory to the unified system's heap!" << endl;
             for(unsigned int frames = MMU::allocable(); frames; frames = MMU::allocable())

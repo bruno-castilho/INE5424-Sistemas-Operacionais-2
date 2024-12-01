@@ -10,7 +10,7 @@
 __BEGIN_UTIL
 
 // Heap
-class Heap: private Grouping_List<char>
+class Heap_Imp: private Grouping_List<char>
 {
 protected:
     static const bool typed = Traits<System>::multiheap;
@@ -20,11 +20,11 @@ public:
     using Grouping_List<char>::size;
     using Grouping_List<char>::grouped_size;
 
-    Heap() {
+    Heap_Imp() {
         db<Init, Heaps>(TRC) << "Heap() => " << this << endl;
     }
 
-    Heap(void * addr, unsigned long bytes) {
+    Heap_Imp(void * addr, unsigned long bytes) {
         db<Init, Heaps>(TRC) << "Heap(addr=" << addr << ",bytes=" << bytes << ") => " << this << endl;
 
         free(addr, bytes);
@@ -76,11 +76,11 @@ public:
     static void typed_free(void * ptr) {
         long * addr = reinterpret_cast<long *>(ptr);
         unsigned long bytes = *--addr;
-        Heap * heap = reinterpret_cast<Heap *>(*--addr);
+        Heap_Imp * heap = reinterpret_cast<Heap_Imp *>(*--addr);
         heap->free(addr, bytes);
     }
 
-    static void untyped_free(Heap * heap, void * ptr) {
+    static void untyped_free(Heap_Imp * heap, void * ptr) {
         long * addr = reinterpret_cast<long *>(ptr);
         unsigned long bytes = *--addr;
         heap->free(addr, bytes);
@@ -150,7 +150,7 @@ private:
 };
 
 
-typedef Heap_Wrapper<Heap, Traits<System>::multicore> Application_Heap;
+typedef Heap_Wrapper<Heap_Imp, Traits<System>::multicore> Heap;
 
 __END_UTIL
 
