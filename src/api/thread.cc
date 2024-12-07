@@ -18,26 +18,25 @@ volatile unsigned long long Thread::_cpu_last_dispatch[Traits<Machine>::CPUS];
 volatile unsigned long long  Thread::_cpu_instructions_per_second[Traits<Machine>::CPUS];
 
 volatile unsigned long long  Thread::_cpu_instructions_per_second_required[Traits<Machine>::CPUS];
-volatile unsigned long long  Thread::_cpu_branch_missprediction[Traits<Machine>::CPUS];
+volatile unsigned long long  Thread::_cpu_branch_missprediction_per_second[Traits<Machine>::CPUS];
 
 Scheduler_Timer *Thread::_timer;
 Scheduler<Thread> Thread::_scheduler;
 Spin Thread::_lock;
 
 
-void Thread::change_thread_queue_if_necessary(){
+void Thread::change_thread_queue_if_necessary() {
     db<Thread>(TRC) << "Thread::change_thread_queue_if_necessary(cpu=" << CPU::id() << ",this=" << running() << ")" << endl;
-    unsigned int cpu_selected = select_cpu_by_branch_missprediction();
-    unsigned long long cpu_selected_branch_missprediction = _cpu_branch_missprediction[cpu_selected];
-
+    unsigned int cpu_selected = select_cpu_by_use_rate();
+    unsigned long long cpu_selected_use = _cpu_branch_missprediction_per_second[cpu_selected]*15 + _cpu_instructions_per_second_required[cpu_selected];
     unsigned int current_cpu = CPU::id();
 
     if(cpu_selected == current_cpu) return;
 
-    for(unsigned int i = 0; i < _cpu_thread_count[current_cpu]; i++){
+    for(unsigned int i = 0; i < _cpu_thread_count[current_cpu]; i++) {
         Thread* t = const_cast<Thread* volatile>(_cpu_threads[current_cpu][i]);
-        unsigned long long cpu_selected_branch_missprediction_predict = cpu_selected_branch_missprediction + t->statistics().branch_misprediction;
-        if(cpu_selected_branch_missprediction_predict < _cpu_branch_missprediction[current_cpu]){
+        unsigned long long cpu_selected_use_predict = cpu_selected_use + t->branch_misprediction_per_second*15 + t->instructions_per_second;
+        if(cpu_selected_use_predict < _cpu_branch_missprediction_per_second[current_cpu]*15 + _cpu_instructions_per_second_required[current_cpu]){
             t->decrease_cost();
             t->criterion().queue(cpu_selected);
             t->increase_cost();
@@ -67,35 +66,20 @@ unsigned long long Thread::get_instructions_per_second_required(unsigned int cpu
     return _cpu_instructions_per_second_required[cpu];
 }
 
-unsigned long long Thread::get_branch_misprediction(unsigned int cpu){
-    return _cpu_branch_missprediction[cpu];
+unsigned long long Thread::get_branch_misprediction_per_second(unsigned int cpu){
+    return _cpu_branch_missprediction_per_second[cpu];
 }
 
 unsigned int Thread::get_thread_count(unsigned int cpu){
     return _cpu_thread_count[cpu];
 }
 
-unsigned int Thread::select_cpu_by_instructions_per_second(){
+unsigned int Thread::select_cpu_by_use_rate() {
     unsigned int cpu_selected = 0;
-    unsigned long long current_is = _cpu_instructions_per_second_required[cpu_selected];
+    unsigned long long current_is = _cpu_branch_missprediction_per_second[cpu_selected]*15 + _cpu_instructions_per_second_required[cpu_selected];
 
     for(unsigned int cpu = 1; cpu < Traits<Machine>::CPUS; cpu++){
-        unsigned long long is = _cpu_instructions_per_second_required[cpu];
-        if(is < current_is){
-            cpu_selected = cpu;
-            current_is = is;
-        }
-    }
-
-    return cpu_selected;
-}
-
-unsigned int Thread::select_cpu_by_branch_missprediction(){
-    unsigned int cpu_selected = 0;
-    unsigned long long current_is = _cpu_branch_missprediction[cpu_selected];
-
-    for(unsigned int cpu = 1; cpu < Traits<Machine>::CPUS; cpu++){
-        unsigned long long is = _cpu_branch_missprediction[cpu];
+        unsigned long long is = _cpu_branch_missprediction_per_second[cpu]*15 + _cpu_instructions_per_second_required[cpu];
         if(is < current_is){
             cpu_selected = cpu;
             current_is = is;
@@ -107,10 +91,10 @@ unsigned int Thread::select_cpu_by_branch_missprediction(){
 
 void Thread::increase_cost(){
     instructions_per_second = statistics().instructions_retired * 1000000ULL / criterion().period();
-    branch_misprediction = statistics().branch_misprediction;
+    branch_misprediction_per_second = statistics().branch_misprediction * 1000000ULL / criterion().period();
 
     _cpu_instructions_per_second_required[criterion().queue()] += instructions_per_second;
-    _cpu_branch_missprediction[criterion().queue()] += branch_misprediction;
+    _cpu_branch_missprediction_per_second[criterion().queue()] += branch_misprediction_per_second;
 
     _cpu_threads[this->criterion().queue()][_cpu_thread_count[this->criterion().queue()]] = this;
     _cpu_thread_count[this->criterion().queue()] += 1;
@@ -119,7 +103,7 @@ void Thread::increase_cost(){
 
 void Thread::decrease_cost(){
     _cpu_instructions_per_second_required[criterion().queue()] -= instructions_per_second;
-    _cpu_branch_missprediction[criterion().queue()] -= branch_misprediction;
+    _cpu_branch_missprediction_per_second[criterion().queue()] -= branch_misprediction_per_second;
 
     for(unsigned int i = 0; i < _cpu_thread_count[criterion().queue()]; i++){
         if(_cpu_threads[criterion().queue()][i] == this){
@@ -136,13 +120,13 @@ void Thread::decrease_cost(){
 
 void Thread::update_cost(){
     _cpu_instructions_per_second_required[criterion().queue()] -= instructions_per_second;
-     _cpu_branch_missprediction[criterion().queue()] -= branch_misprediction;
+    _cpu_branch_missprediction_per_second[criterion().queue()] -= branch_misprediction_per_second;
 
     instructions_per_second = statistics().instructions_retired * 1000000ULL / criterion().period();
-    branch_misprediction = statistics().branch_misprediction;
+    branch_misprediction_per_second = statistics().branch_misprediction;
 
     _cpu_instructions_per_second_required[criterion().queue()] += instructions_per_second;
-    _cpu_branch_missprediction[criterion().queue()] += branch_misprediction;
+    _cpu_branch_missprediction_per_second[criterion().queue()] += branch_misprediction_per_second;
 }
 
 void Thread::constructor_prologue(unsigned int stack_size)
