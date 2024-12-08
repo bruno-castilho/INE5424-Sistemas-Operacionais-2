@@ -73,7 +73,7 @@ public:
     };
 
     unsigned long long instructions_per_second;
-    unsigned long long branch_misprediction;
+    unsigned long long branch_misprediction_per_second;
 
 
 public:
@@ -108,7 +108,7 @@ public:
 
     static unsigned long long get_instructions_per_second(unsigned int cpu);
     static unsigned long long get_instructions_per_second_required(unsigned int cpu);
-    static unsigned long long get_branch_misprediction(unsigned int cpu);
+    static unsigned long long get_branch_misprediction_per_second(unsigned int cpu);
     static unsigned int get_changes_count();
 
     static unsigned int get_thread_count(unsigned int cpu);
@@ -158,8 +158,7 @@ protected:
     }
 
     static Hertz calculate_frequency();
-    static unsigned int select_cpu_by_instructions_per_second();
-    static unsigned int select_cpu_by_branch_missprediction();
+    static unsigned int select_cpu_by_use_rate();
     static void change_thread_queue_if_necessary();
 
     static int idle();
@@ -186,7 +185,7 @@ protected:
     static volatile unsigned long long _cpu_last_dispatch[Traits<Machine>::CPUS];
     static volatile unsigned long long _cpu_instructions_per_second[Traits<Machine>::CPUS];
     static volatile unsigned long long _cpu_instructions_per_second_required[Traits<Machine>::CPUS];
-    static volatile unsigned long long _cpu_branch_missprediction[Traits<Machine>::CPUS];
+    static volatile unsigned long long _cpu_branch_missprediction_per_second[Traits<Machine>::CPUS];
 
     static Scheduler_Timer * _timer;
     static Scheduler<Thread> _scheduler;

@@ -87,7 +87,7 @@ inline void exec(char c, int i = 0)
 
     cout << "_cpu_branch_misprediction" << endl;
     for(unsigned int cpu = 0; cpu < Traits<Machine>::CPUS; cpu++){
-        cout << "{" << cpu << ": " << Periodic_Thread::get_branch_misprediction(cpu) << "}" << endl;
+        cout << "{" << cpu << ": " << Periodic_Thread::get_branch_misprediction_per_second(cpu) << "}" << endl;
     }
 
     write.v();
