@@ -522,10 +522,7 @@ void Thread::dispatch(Thread *prev, Thread *next, bool charge)
         if(smp)
             _lock.release();
 
-        
-
-        CPU::clock(Thread::calculate_frequency());
-        
+                
         PMU::reset(2);
         PMU::reset(3);
         PMU::reset(4);
@@ -549,6 +546,7 @@ int Thread::idle()
 {
     db<Thread>(TRC) << "Thread::idle(cpu=" << CPU::id() << ",this=" << running() << ")" << endl;
     change_thread_queue_if_necessary();
+    CPU::clock(Thread::calculate_frequency());
     while(_thread_count > CPU::cores()) { // someone else besides idles
         if(Traits<Thread>::trace_idle)
             db<Thread>(TRC) << "Thread::idle(cpu=" << CPU::id() << ",this=" << running() << ")" << endl;
